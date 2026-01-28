@@ -4,7 +4,8 @@ import { GameStatus, ShotQuality, GameState } from './types';
 import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
 
-const AI_SPEED = 0.35; // Approximately half of player speed (0.8)
+const AI_SPEED = 0.2; // Approximately half of player speed (0.8)
+const AI_REACH_RADIUS = 9;
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -17,10 +18,13 @@ const App: React.FC = () => {
   });
 
   const [ballPos, setBallPos] = useState({ x: 50, y: 10 });
+  const [ballHitPos, setBallHitPos] = useState({ x: 50, y: 10 });
   const [playerPos, setPlayerPos] = useState({ x: 50, y: 85 });
   const [aiPos, setAiPos] = useState({ x: 50, y: 10 });
+  const currentAiPosRef = useRef(aiPos);
   const [lastStroke, setLastStroke] = useState<'FH' | 'BH' | null>(null);
   const [isSwinging, setIsSwinging] = useState(false);
+  const [isAiSwinging, setIsAiSwinging] = useState(false);
   const [commentary, setCommentary] = useState("Ready to dominate?");
   const [feedback, setFeedback] = useState("");
   const [rallyCount, setRallyCount] = useState(0);
@@ -48,6 +52,10 @@ const App: React.FC = () => {
   useEffect(() => {
     currentPlayerPosRef.current = playerPos;
   }, [playerPos]);
+
+  useEffect(() => {
+    currentAiPosRef.current = aiPos;
+  }, [aiPos]);
 
   // Helper to show feedback briefly
   const triggerFeedback = useCallback((text: string, duration = 800) => {
@@ -84,13 +92,17 @@ const App: React.FC = () => {
           return { ...prev, x: prev.x + Math.sign(dx) * AI_SPEED };
         });
 
+        // Update live ball position for hit checks and UI cues
+        const now = performance.now();
+        const elapsed = now - shotStartTimeRef.current;
+        const progress = Math.min(1, shotDurationRef.current > 0 ? elapsed / shotDurationRef.current : 1);
+        const liveBallX = shotStartPosRef.current.x + (shotEndPosRef.current.x - shotStartPosRef.current.x) * progress;
+        const liveBallY = shotStartPosRef.current.y + (shotEndPosRef.current.y - shotStartPosRef.current.y) * progress;
+        setBallHitPos({ x: liveBallX, y: liveBallY });
+
         // Update Meter based on ball proximity to player's hitting line
         if (isBallLiveRef.current && !isMeterHolding) {
-          const now = performance.now();
-          const elapsed = now - shotStartTimeRef.current;
-          const progress = elapsed / shotDurationRef.current;
-          
-          const bY = shotStartPosRef.current.y + (shotEndPosRef.current.y - shotStartPosRef.current.y) * progress;
+          const bY = liveBallY;
           const distToHittingLine = bY - currentPlayerPosRef.current.y;
           
           if (Math.abs(distToHittingLine) < PHYSICS.HIT_RADIUS * 1.5) {
@@ -154,6 +166,14 @@ const App: React.FC = () => {
     setCommentary(text);
   };
 
+  const extendShotToY = useCallback((start: { x: number; y: number }, end: { x: number; y: number }, targetY: number) => {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    if (dy === 0) return end.x;
+    const t = (targetY - end.y) / dy;
+    return end.x + dx * t;
+  }, []);
+
   const resetPoint = useCallback((winner: 'player' | 'opponent') => {
     isBallLiveRef.current = false;
     setRallyCount(0);
@@ -180,12 +200,16 @@ const App: React.FC = () => {
     }, 1000); 
   }, [gameState.player.score, gameState.opponent.score, triggerFeedback]);
 
-  const startAiShot = useCallback(() => {
-    const startX = aiPos.x;
-    const startY = 10;
+  const startAiShot = useCallback((startOverride?: { x: number; y: number }) => {
+    setIsAiSwinging(true);
+    setTimeout(() => setIsAiSwinging(false), 250);
+    const startX = startOverride?.x ?? currentAiPosRef.current.x;
+    const startY = startOverride?.y ?? currentAiPosRef.current.y;
     const endX = Math.max(10, Math.min(90, currentPlayerPosRef.current.x + (Math.random() * 40 - 20)));
-    const endY = 95;
+    const endY = 72;
+    const outY = 112;
     const duration = Math.max(1600, PHYSICS.BALL_SPEED_BASE - (rallyCount * 80));
+    const outDuration = duration;
 
     setCurrentAnimDuration(0);
     setBallPos({ x: startX, y: startY });
@@ -203,12 +227,26 @@ const App: React.FC = () => {
       // AI starts recovering to middle after hitting
       aiTargetXRef.current = 50;
 
+      if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
       ballTimeoutRef.current = setTimeout(() => {
-        if (isBallLiveRef.current) {
-          addBounceMarker(endX, endY);
+        if (!isBallLiveRef.current) return;
+        addBounceMarker(endX, endY);
+        shotStartTimeRef.current = performance.now();
+        shotDurationRef.current = outDuration;
+        const travelX = endX - startX;
+        const travelY = endY - startY;
+        const continuationT = travelY !== 0 ? (outY - endY) / travelY : 0;
+        const outX = Math.max(5, Math.min(95, endX + travelX * continuationT));
+        shotStartPosRef.current = { x: endX, y: endY };
+        shotEndPosRef.current = { x: outX, y: outY };
+        setCurrentAnimDuration(outDuration);
+        setBallPos({ x: outX, y: outY });
+
+        ballTimeoutRef.current = setTimeout(() => {
+          if (!isBallLiveRef.current) return;
           triggerFeedback("OUT! ❌", 600);
           resetPoint('opponent');
-        }
+        }, outDuration);
       }, duration);
     }, 50);
   }, [rallyCount, resetPoint, playHitSound, addBounceMarker, triggerFeedback, aiPos.x]);
@@ -279,32 +317,62 @@ const App: React.FC = () => {
       
       shotStartTimeRef.current = performance.now();
       shotDurationRef.current = hitSpeed;
+      const aiBounceY = 18;
       shotStartPosRef.current = { x: bX, y: bY };
-      shotEndPosRef.current = { x: targetX, y: 5 };
+      shotEndPosRef.current = { x: targetX, y: aiBounceY };
 
       setCurrentAnimDuration(0);
       setBallPos({ x: bX, y: bY });
       
       setTimeout(() => {
         setCurrentAnimDuration(hitSpeed);
-        setBallPos({ x: targetX, y: 5 });
+        setBallPos({ x: targetX, y: aiBounceY });
       }, 20);
 
       setTimeout(() => {
-        addBounceMarker(targetX, 5); 
+        addBounceMarker(targetX, aiBounceY); 
         // Logic check: AI only hits if it is close to targetX
-        const aiDistFromBall = Math.abs(aiPos.x - targetX);
-        const canReach = aiDistFromBall < 15; // AI reach radius
-
-        const distFromCenter = Math.abs(targetX - 50);
-        let aiMissChance = (canReach ? 0.05 : 0.4) + (rallyCount * 0.05) + (distFromCenter * 0.012);
-        if (stroke === 'FH') aiMissChance += 0.05;
+        const aiDistFromBall = Math.hypot(aiPos.x - targetX, aiPos.y - aiBounceY);
+        const canReach = aiDistFromBall < AI_REACH_RADIUS;
+        const missFalloff = 40;
+        const baseMiss = 0.1;
+        const missScale = 0.8;
+        const distanceFactor = Math.max(0, aiDistFromBall - AI_REACH_RADIUS) / missFalloff;
+        const aiMissChance = canReach ? 0.02 : Math.min(0.9, baseMiss + distanceFactor * missScale);
 
         if (Math.random() < aiMissChance) {
           triggerFeedback("WINNER! 🏆", 1000);
-          resetPoint('player');
+          const outY = -12;
+          const outX = extendShotToY({ x: bX, y: bY }, { x: targetX, y: aiBounceY }, outY);
+          shotStartTimeRef.current = performance.now();
+          shotDurationRef.current = hitSpeed;
+          shotStartPosRef.current = { x: targetX, y: aiBounceY };
+          shotEndPosRef.current = { x: outX, y: outY };
+          setCurrentAnimDuration(hitSpeed);
+          setBallPos({ x: outX, y: outY });
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            resetPoint('player');
+          }, hitSpeed);
         } else {
-          startAiShot();
+          const contactY = 8;
+          const contactX = extendShotToY({ x: bX, y: bY }, { x: targetX, y: aiBounceY }, contactY);
+          const segmentY = Math.abs(aiBounceY - contactY);
+          const fullY = Math.abs(aiBounceY - bY);
+          const continueDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.3));
+
+          shotStartTimeRef.current = performance.now();
+          shotDurationRef.current = continueDuration;
+          shotStartPosRef.current = { x: targetX, y: aiBounceY };
+          shotEndPosRef.current = { x: contactX, y: contactY };
+          setCurrentAnimDuration(continueDuration);
+          setBallPos({ x: contactX, y: contactY });
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            startAiShot({ x: contactX, y: contactY });
+          }, continueDuration);
         }
       }, hitSpeed);
     }
@@ -344,15 +412,6 @@ const App: React.FC = () => {
           <span className="text-[10px] font-orbitron text-blue-400 tracking-[0.2em] uppercase mb-1">YOU</span>
           <span className="text-6xl font-orbitron font-bold tracking-tighter">{gameState.player.score}</span>
         </div>
-        
-        <div className="flex flex-col items-center flex-1 mx-12">
-           <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] mb-2 italic text-white drop-shadow-2xl">ACE MASTER</h1>
-           <div className="h-16 flex items-center justify-center">
-              <p className="text-slate-400 text-[10px] font-orbitron uppercase tracking-widest text-center px-6 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm italic">
-                {commentary}
-              </p>
-           </div>
-        </div>
 
         <div className="flex flex-col items-end bg-red-900/40 p-5 rounded-2xl border border-red-500/30 backdrop-blur-md shadow-2xl">
           <span className="text-[10px] font-orbitron text-red-400 tracking-[0.2em] uppercase mb-1">AI</span>
@@ -360,13 +419,25 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      <div className="absolute bottom-6 left-6 z-30 pointer-events-none">
+        <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] mb-2 italic text-white drop-shadow-2xl">ACE MASTER</h1>
+        <div className="h-16 flex items-center justify-start">
+          <p className="text-slate-400 text-[10px] font-orbitron uppercase tracking-widest text-left px-6 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm italic">
+            {commentary}
+          </p>
+        </div>
+      </div>
+
       {/* Main Game Court */}
       <div className="relative w-full h-full flex items-center justify-center">
         <Court 
-          ballPosition={ballPos} 
+          ballPosition={ballPos}
+          ballHitPosition={ballHitPos}
           playerPosition={playerPos} 
-          aiPosition={aiPos}
-          animationDuration={currentAnimDuration} 
+          aiPosition={aiPos} 
+          aiReachRadius={AI_REACH_RADIUS}
+          aiSwinging={isAiSwinging}
+          animationDuration={currentAnimDuration}
           lastStroke={lastStroke}
           isSwinging={isSwinging}
           bounceMarkers={bounceMarkers}
