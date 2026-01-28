@@ -68,14 +68,14 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'federer-volley',
     player: 'Federer',
     shot: 'volley',
-    stats: { control: 75, accuracy: 80 },
+    stats: { control: 150, accuracy: 80 },
     price: 280,
   },
   {
     id: 'henin-volley',
     player: 'Henin',
     shot: 'volley',
-    stats: { control: 72, accuracy: 78 },
+    stats: { control: 120, accuracy: 78 },
     price: 260,
   },
   {
@@ -96,14 +96,14 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'pro-athleticism',
     player: 'Pro',
     shot: 'athleticism',
-    stats: { speed: 150, stamina: 40 },
+    stats: { speed: 50, stamina: 60 },
     price: 0,
   },
   {
     id: 'djokovic-athleticism',
     player: 'Djokovic',
     shot: 'athleticism',
-    stats: { speed: 40, stamina: 50 },
+    stats: { speed: 50, stamina: 50 },
     price: 320,
   },
   {

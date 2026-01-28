@@ -8,7 +8,7 @@ const AI_COURT_BOUNDS = { MIN_Y: -18, MAX_Y: 90 };
 const SERVE_BASE_DURATION = 700;
 const SHOT_BASE_DURATION = 800;
 const DROP_SHOT_BASE_DURATION = 2000;
-const VOLLEY_BASE_DURATION = 1000;
+const VOLLEY_BASE_DURATION = 500;
 const PRE_BOUNCE_BEZIER = { x1: 0.18, y1: 0.225, x2: 0.7, y2: 0.85 };
 const PRE_BOUNCE_TIMING = `cubic-bezier(${PRE_BOUNCE_BEZIER.x1}, ${PRE_BOUNCE_BEZIER.y1}, ${PRE_BOUNCE_BEZIER.x2}, ${PRE_BOUNCE_BEZIER.y2})`;
 const POST_BOUNCE_TIMING = 'linear';
@@ -40,7 +40,7 @@ const SERVE_TARGET_X = {
   ad: { wide: 85, middle: 55 },
 };
 const VOLLEY_TARGET_Y = 71;
-const AI_VOLLEY_ZONE_Y = 79;
+const AI_VOLLEY_ZONE_Y = 60;
 
 type GameProps = {
   playerStats: PlayerStats;
@@ -124,7 +124,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   const getPlayerSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.8+ (speedStat / 100) * 0.8;
+    const baseMultiplier = 0.3 + (speedStat / 100) * 0.7;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -134,8 +134,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   const getAiSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, aiStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, aiStats.athleticism.stamina));
-    const baseMultiplier = 0.8 + (speedStat / 100) * 0.8;
-    const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier * 0.85;
+    const baseMultiplier = 0.3 + (speedStat / 100) * 0.7;
+    const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
     return baseSpeed * staminaFactor;
@@ -144,7 +144,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   const playerSpeedDebug = useMemo(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.8 + (speedStat / 100) * 0.8;
+    const baseMultiplier = 0.3 + (speedStat / 100) * 0.7;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -233,7 +233,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     return () => cancelAnimationFrame(frameId);
   }, [gameState.status, getAiSpeed, getPlayerSpeed, isMeterHolding, isServePending, server]);
 
-  const playHitSound = useCallback((isPlayer: boolean) => {
+  const playBounceSound = useCallback((isPlayer: boolean) => {
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     const ctx = audioCtxRef.current;
     
@@ -263,13 +263,77 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     noise.start();
   }, []);
 
+  const playHitSound = useCallback((isPlayer: boolean) => {
+    if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = audioCtxRef.current;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isPlayer ? 150 : 135, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(95, ctx.currentTime + 0.07);
+    gain.gain.setValueAtTime(0.65, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.14);
+
+    const bufferSize = ctx.sampleRate * 0.04;
+
+    const snapOsc = ctx.createOscillator();
+    const snapGain = ctx.createGain();
+    snapOsc.type = 'square';
+    snapOsc.frequency.setValueAtTime(isPlayer ? 2200 : 2000, ctx.currentTime);
+    snapOsc.frequency.exponentialRampToValueAtTime(1300, ctx.currentTime + 0.02);
+    snapGain.gain.setValueAtTime(0.1, ctx.currentTime);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
+    snapOsc.connect(snapGain);
+    snapGain.connect(ctx.destination);
+    snapOsc.start();
+    snapOsc.stop(ctx.currentTime + 0.03);
+
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) noiseData[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.setValueAtTime(900, ctx.currentTime);
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.2, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start();
+
+    const popNoiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const popNoiseData = popNoiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) popNoiseData[i] = Math.random() * 2 - 1;
+    const popNoise = ctx.createBufferSource();
+    popNoise.buffer = popNoiseBuffer;
+    const popFilter = ctx.createBiquadFilter();
+    popFilter.type = 'lowpass';
+    popFilter.frequency.setValueAtTime(480, ctx.currentTime);
+    const popGain = ctx.createGain();
+    popGain.gain.setValueAtTime(0.22, ctx.currentTime);
+    popGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+    popNoise.connect(popFilter);
+    popFilter.connect(popGain);
+    popGain.connect(ctx.destination);
+    popNoise.start();
+  }, []);
+
   const addBounceMarker = useCallback((x: number, y: number) => {
+    playBounceSound(false);
     const id = Date.now();
     setBounceMarkers(prev => [...prev.slice(-10), { id, x, y, opacity: 0.8 }]);
     setTimeout(() => {
       setBounceMarkers(prev => prev.map(m => m.id === id ? { ...m, opacity: 0 } : m));
     }, 600);
-  }, []);
+  }, [playBounceSound]);
 
   const playServeFault = useCallback((start: { x: number; y: number }, target: { x: number; y: number }, duration: number) => {
     isBallLiveRef.current = false;
@@ -659,11 +723,17 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     const { startX, startY, hitSpeed, isDropShot, bounceX, bounceY } = params;
     const aiNow = currentAiPosRef.current;
     const aiVolleyCandidate = aiNow.y >= AI_VOLLEY_ZONE_Y;
+    const aiBounceY = bounceY;
     const volleyTargetX = extendShotToY({ x: startX, y: startY }, { x: bounceX, y: bounceY }, AI_VOLLEY_ZONE_Y);
     const volleyTarget = { x: volleyTargetX, y: AI_VOLLEY_ZONE_Y };
     const aiVolleyDist = Math.hypot(aiNow.x - volleyTarget.x, aiNow.y - volleyTarget.y);
-    const aiWillVolley = aiVolleyCandidate && aiVolleyDist < aiVolleyRadius;
-    const aiBounceY = bounceY;
+    const distTotal = Math.hypot(bounceX - startX, aiBounceY - startY);
+    const distVolley = Math.hypot(volleyTarget.x - startX, volleyTarget.y - startY);
+    const volleyArrivalMs = Math.max(120, hitSpeed * (distTotal > 0 ? distVolley / distTotal : 0.5));
+    const aiSpeed = getAiSpeed();
+    const aiTravelMs = aiSpeed > 0 ? (aiVolleyDist / aiSpeed) * (1000 / 60) : Number.POSITIVE_INFINITY;
+    const aiCanReachVolley = aiVolleyDist < aiVolleyRadius || aiTravelMs <= volleyArrivalMs;
+    const aiWillVolley = aiVolleyCandidate && aiCanReachVolley;
     const dropStopY = Math.max(24, aiBounceY - 24);
     const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 8, aiBounceY - 36);
     const preStart = { x: startX, y: startY };
@@ -684,9 +754,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     shotStartTimeRef.current = performance.now();
     if (aiWillVolley) {
       setBallTimingFunction(PRE_BOUNCE_TIMING);
-      const distTotal = Math.hypot(bounceX - startX, aiBounceY - startY);
-      const distVolley = Math.hypot(volleyTarget.x - startX, volleyTarget.y - startY);
-      const volleyDuration = Math.max(120, hitSpeed * (distTotal > 0 ? distVolley / distTotal : 0.5));
+      const volleyDuration = volleyArrivalMs;
       shotDurationRef.current = volleyDuration;
       shotStartPosRef.current = { x: startX, y: startY };
       shotEndPosRef.current = { x: volleyTarget.x, y: volleyTarget.y };
@@ -848,7 +916,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
         }
       }
     }, hitSpeed);
-  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, extendShotToY, getPostBounceDuration, isOutOfBounds, resetPoint, startAiShot, triggerFeedback]);
+  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, extendShotToY, getAiSpeed, getPostBounceDuration, isOutOfBounds, resetPoint, startAiShot, triggerFeedback]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
@@ -1179,6 +1247,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
         visible: true,
       }
     : undefined;
+  const aiVolleyDebugTarget = currentAnimDuration > 0 && !ballHasBouncedRef.current
+    ? { x: extendShotToY(shotStartPosRef.current, shotEndPosRef.current, AI_VOLLEY_ZONE_Y), y: AI_VOLLEY_ZONE_Y }
+    : undefined;
 
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center select-none bg-slate-950 text-white overflow-hidden font-inter">
@@ -1282,6 +1353,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           aiHitRadiusFH={aiHitRadiusFH}
           aiHitRadiusBH={aiHitRadiusBH}
           serveDebug={serveDebug}
+          aiVolleyZoneY={AI_VOLLEY_ZONE_Y}
+          aiVolleyTarget={aiVolleyDebugTarget}
           aiSwinging={isAiSwinging}
           animationDuration={currentAnimDuration}
           ballTimingFunction={ballTimingFunction}

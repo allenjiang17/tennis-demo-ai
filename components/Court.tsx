@@ -19,6 +19,8 @@ interface CourtProps {
   aiHitRadiusFH: number;
   aiHitRadiusBH: number;
   serveDebug?: { x: number; y: number; radius: number; visible: boolean };
+  aiVolleyZoneY?: number;
+  aiVolleyTarget?: { x: number; y: number };
   aiSwinging: boolean;
   animationDuration: number;
   ballTimingFunction: string;
@@ -37,6 +39,8 @@ const Court: React.FC<CourtProps> = ({
   aiHitRadiusFH,
   aiHitRadiusBH,
   serveDebug,
+  aiVolleyZoneY,
+  aiVolleyTarget,
   aiSwinging,
   animationDuration, 
   ballTimingFunction,
@@ -86,6 +90,10 @@ const Court: React.FC<CourtProps> = ({
   const aiHitRadiusX = (playableWidth * aiActiveHitRadius) / 100;
   const serveDebugOnCourt = serveDebug ? mapToCourt({ x: serveDebug.x, y: serveDebug.y }) : null;
   const serveDebugRadiusX = serveDebug ? (playableWidth * serveDebug.radius) / 100 : 0;
+  const aiVolleyZoneOnCourt = aiVolleyZoneY !== undefined
+    ? mapToCourt({ x: PHYSICS.COURT_BOUNDS.MIN_X, y: aiVolleyZoneY })
+    : null;
+  const aiVolleyTargetOnCourt = aiVolleyTarget ? mapToCourt(aiVolleyTarget) : null;
 
   return (
     <div className="relative w-full h-full perspective-1000 overflow-hidden bg-slate-900 flex items-start justify-center">
@@ -144,6 +152,31 @@ const Court: React.FC<CourtProps> = ({
           <div className="absolute top-[75%] left-0 w-full h-0.5 bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
           <div className="absolute top-[25%] bottom-[25%] left-1/2 w-0.5 bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
         </div>
+
+        {aiVolleyZoneOnCourt && (
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{
+              left: `${playableInsetX}%`,
+              right: `${playableInsetX}%`,
+              top: `${aiVolleyZoneOnCourt.y}%`,
+              transform: 'translateY(-50%)',
+            }}
+          >
+            <div className="w-full h-0.5 bg-fuchsia-300/70 shadow-[0_0_8px_rgba(232,121,249,0.7)]" />
+          </div>
+        )}
+
+        {aiVolleyTargetOnCourt && (
+          <div
+            className="absolute pointer-events-none z-10 w-3 h-3 rounded-full bg-fuchsia-200 shadow-[0_0_10px_rgba(232,121,249,0.9)]"
+            style={{
+              left: `${aiVolleyTargetOnCourt.x}%`,
+              top: `${aiVolleyTargetOnCourt.y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
 
         {/* AI Opponent - Uses Managed Position */}
         {showHitDebug && (
