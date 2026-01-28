@@ -64,3 +64,17 @@ export type Loadout = {
   backhand: string;
   athleticism: string;
 };
+
+export type AiTendencies = {
+  awayBias: number;
+  homeY: number;
+  dropShotChance: number;
+};
+
+export type AiProfile = {
+  id: string;
+  name: string;
+  description: string;
+  loadout: Loadout;
+  tendencies: AiTendencies;
+};

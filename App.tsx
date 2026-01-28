@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import Game from './Game';
 import Shop from './components/Shop';
-import { Loadout, PlayerStats, ShopItem } from './types';
+import OpponentSelect from './components/OpponentSelect';
+import { AiProfile, Loadout, PlayerStats, ShopItem } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
+import { AI_PROFILES } from './data/aiProfiles';
 
 const DEFAULT_LOADOUT: Loadout = {
   serveFirst: 'pro-serve',
@@ -38,16 +40,21 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
 };
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<'shop' | 'game'>('shop');
-  const [wallet, setWallet] = useState(1000);
+  const [screen, setScreen] = useState<'shop' | 'opponent' | 'game'>('shop');
+  const [wallet, setWallet] = useState(5000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
     new Set(['pro-serve', 'pro-forehand', 'pro-backhand', 'pro-athleticism'])
   );
   const [loadout, setLoadout] = useState<Loadout>(DEFAULT_LOADOUT);
+  const [selectedAi, setSelectedAi] = useState<AiProfile>(AI_PROFILES[0]);
 
   const playerStats = useMemo(
     () => buildPlayerStats(SHOP_ITEMS, loadout),
     [loadout]
+  );
+  const aiStats = useMemo(
+    () => buildPlayerStats(SHOP_ITEMS, selectedAi.loadout),
+    [selectedAi]
   );
 
   const handleBuy = (item: ShopItem) => {
@@ -63,7 +70,28 @@ const App: React.FC = () => {
   };
 
   if (screen === 'game') {
-    return <Game playerStats={playerStats} onExit={() => setScreen('shop')} />;
+    return (
+      <Game
+        playerStats={playerStats}
+        aiStats={aiStats}
+        aiProfile={selectedAi}
+        onExit={() => setScreen('shop')}
+      />
+    );
+  }
+
+  if (screen === 'opponent') {
+    return (
+      <OpponentSelect
+        profiles={AI_PROFILES}
+        selectedId={selectedAi.id}
+        onSelect={profile => {
+          setSelectedAi(profile);
+          setScreen('game');
+        }}
+        onBack={() => setScreen('shop')}
+      />
+    );
   }
 
   return (
@@ -74,7 +102,7 @@ const App: React.FC = () => {
       loadout={loadout}
       onBuy={handleBuy}
       onEquip={handleEquip}
-      onStart={() => setScreen('game')}
+      onStart={() => setScreen('opponent')}
     />
   );
 };
