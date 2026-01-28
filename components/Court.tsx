@@ -62,8 +62,9 @@ const Court: React.FC<CourtProps> = ({
   const dy = ballHitOnCourt.y - playerOnCourt.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
   const isInReach = distance < PHYSICS.HIT_RADIUS;
+  const showHitDebug = true;
+  const hitRadiusX = (playableWidth * PHYSICS.HIT_RADIUS) / 100;
   const aiOnCourt = mapToCourt(aiPosition);
-  const aiRenderTop = Math.max(playableInsetTop - 6, 2);
 
   return (
     <div className="relative w-full h-full perspective-1000 overflow-hidden bg-slate-900 flex items-start justify-center">
@@ -125,10 +126,10 @@ const Court: React.FC<CourtProps> = ({
 
         {/* AI Opponent - Uses Managed Position */}
         <div 
-          className="absolute left-1/2 -translate-x-1/2 z-20"
+          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
           style={{ 
             left: `${aiOnCourt.x}%`,
-            top: `${aiRenderTop}%`
+            top: `${aiOnCourt.y}%`
           }}
         >
            <div className="flex flex-col items-center">
@@ -154,12 +155,12 @@ const Court: React.FC<CourtProps> = ({
 
         {/* Playable Player */}
         <div 
-          className="absolute transition-all duration-75 ease-out z-20"
-          style={{ left: `${playerPosition.x}%`, top: `${playerPosition.y}%`, transform: 'translate(-50%, -50%)' }}
+          className="absolute z-20"
+          style={{ left: `${playerOnCourt.x}%`, top: `${playerOnCourt.y}%`, transform: 'translate(-50%, -50%)' }}
         >
            <div className="relative flex items-center justify-center w-32 h-32">
              <div 
-               className={`absolute w-32 h-32 rounded-full border-2 transition-all duration-300 ${isInReach ? 'border-emerald-400 scale-110 bg-emerald-400/10' : 'border-white/10'}`} 
+               className={`absolute w-28 h-28 rounded-full border-2 transition-all duration-300 ${isInReach ? 'border-emerald-400 scale-110 bg-emerald-400/10' : 'border-white/10'}`} 
              />
              
              <div 
@@ -189,6 +190,28 @@ const Court: React.FC<CourtProps> = ({
              </div>
            </div>
         </div>
+
+        {showHitDebug && (
+          <>
+            <div
+              className="absolute pointer-events-none z-10 rounded-full border border-yellow-300/70 border-dashed aspect-square"
+              style={{
+                width: `${hitRadiusX * 2}%`,
+                left: `${playerOnCourt.x}%`,
+                top: `${playerOnCourt.y}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+            <div
+              className="absolute pointer-events-none z-10 w-2 h-2 bg-yellow-200 rounded-full shadow-[0_0_10px_rgba(253,224,71,0.8)]"
+              style={{
+                left: `${ballHitOnCourt.x}%`,
+                top: `${ballHitOnCourt.y}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+          </>
+        )}
 
         {/* Ball Shadow */}
         <div 
