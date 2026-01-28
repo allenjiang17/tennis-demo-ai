@@ -1,28 +1,31 @@
 import React, { useMemo, useState } from 'react';
 import Game from './Game';
 import Shop from './components/Shop';
-import { Loadout, PlayerStats, ShopItem, ShotType } from './types';
+import { Loadout, PlayerStats, ShopItem } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
 
 const DEFAULT_LOADOUT: Loadout = {
-  serve: 'pro-serve',
+  serveFirst: 'pro-serve',
+  serveSecond: 'pro-serve',
   forehand: 'pro-forehand',
   backhand: 'pro-backhand',
 };
 
 const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const byId = new Map(items.map(item => [item.id, item.stats]));
-  const serve = byId.get(loadout.serve);
+  const serveFirst = byId.get(loadout.serveFirst);
+  const serveSecond = byId.get(loadout.serveSecond);
   const forehand = byId.get(loadout.forehand);
   const backhand = byId.get(loadout.backhand);
-  if (!serve || !forehand || !backhand) {
+  if (!serveFirst || !serveSecond || !forehand || !backhand) {
     return {
-      serve: { power: 50, spin: 50, control: 50, shape: 50 },
+      serveFirst: { power: 50, spin: 50, control: 50, shape: 50 },
+      serveSecond: { power: 50, spin: 50, control: 50, shape: 50 },
       forehand: { power: 50, spin: 50, control: 50, shape: 50 },
       backhand: { power: 50, spin: 50, control: 50, shape: 50 },
     };
   }
-  return { serve, forehand, backhand };
+  return { serveFirst, serveSecond, forehand, backhand };
 };
 
 const App: React.FC = () => {
@@ -45,10 +48,9 @@ const App: React.FC = () => {
     setOwnedIds(prev => new Set([...Array.from(prev), item.id]));
   };
 
-  const handleEquip = (item: ShopItem) => {
+  const handleEquip = (item: ShopItem, slot: keyof Loadout) => {
     if (!ownedIds.has(item.id)) return;
-    const key = item.shot as ShotType;
-    setLoadout(prev => ({ ...prev, [key]: item.id }));
+    setLoadout(prev => ({ ...prev, [slot]: item.id }));
   };
 
   if (screen === 'game') {

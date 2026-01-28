@@ -18,6 +18,7 @@ interface CourtProps {
   playerHitRadiusBH: number;
   aiHitRadiusFH: number;
   aiHitRadiusBH: number;
+  serveDebug?: { x: number; y: number; radius: number; visible: boolean };
   aiSwinging: boolean;
   animationDuration: number;
   lastStroke: 'FH' | 'BH' | null;
@@ -34,6 +35,7 @@ const Court: React.FC<CourtProps> = ({
   playerHitRadiusBH,
   aiHitRadiusFH,
   aiHitRadiusBH,
+  serveDebug,
   aiSwinging,
   animationDuration, 
   lastStroke, 
@@ -79,6 +81,9 @@ const Court: React.FC<CourtProps> = ({
   const aiDx = ballHitOnCourt.x - aiOnCourt.x;
   const aiActiveHitRadius = aiDx < 0 ? aiHitRadiusBH : aiHitRadiusFH;
   const aiHitRadiusX = (playableWidth * aiActiveHitRadius) / 100;
+  const serveDebugOnCourt = serveDebug ? mapToCourt({ x: serveDebug.x, y: serveDebug.y }) : null;
+  const serveDebugRadiusX = serveDebug ? (playableWidth * serveDebug.radius) / 100 : 0;
+  const serveDebugRadiusY = serveDebug ? (playableHeight * serveDebug.radius) / 100 : 0;
 
   return (
     <div className="relative w-full h-full perspective-1000 overflow-hidden bg-slate-900 flex items-start justify-center">
@@ -146,6 +151,19 @@ const Court: React.FC<CourtProps> = ({
               width: `${aiHitRadiusX * 2}%`,
               left: `${aiOnCourt.x}%`,
               top: `${aiOnCourt.y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
+
+        {serveDebug?.visible && serveDebugOnCourt && (
+          <div
+            className="absolute pointer-events-none z-10 border border-cyan-200/70 border-dashed"
+            style={{
+              width: `${serveDebugRadiusX * 2}%`,
+              height: `${serveDebugRadiusY * 2}%`,
+              left: `${serveDebugOnCourt.x}%`,
+              top: `${serveDebugOnCourt.y}%`,
               transform: 'translate(-50%, -50%)',
             }}
           />

@@ -7,7 +7,7 @@ type ShopProps = {
   ownedIds: Set<string>;
   loadout: Loadout;
   onBuy: (item: ShopItem) => void;
-  onEquip: (item: ShopItem) => void;
+  onEquip: (item: ShopItem, slot: keyof Loadout) => void;
   onStart: () => void;
 };
 
@@ -19,17 +19,19 @@ const typeLabel: Record<ShotType, string> = {
 
 const buildStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const byId = new Map(items.map(item => [item.id, item.stats]));
-  const serve = byId.get(loadout.serve);
+  const serveFirst = byId.get(loadout.serveFirst);
+  const serveSecond = byId.get(loadout.serveSecond);
   const forehand = byId.get(loadout.forehand);
   const backhand = byId.get(loadout.backhand);
-  if (!serve || !forehand || !backhand) {
+  if (!serveFirst || !serveSecond || !forehand || !backhand) {
     return {
-      serve: { power: 50, spin: 50, control: 50 },
-      forehand: { power: 50, spin: 50, control: 50 },
-      backhand: { power: 50, spin: 50, control: 50 },
+      serveFirst: { power: 50, spin: 50, control: 50, shape: 50 },
+      serveSecond: { power: 50, spin: 50, control: 50, shape: 50 },
+      forehand: { power: 50, spin: 50, control: 50, shape: 50 },
+      backhand: { power: 50, spin: 50, control: 50, shape: 50 },
     };
   }
-  return { serve, forehand, backhand };
+  return { serveFirst, serveSecond, forehand, backhand };
 };
 
 const Shop: React.FC<ShopProps> = ({
@@ -76,13 +78,18 @@ const Shop: React.FC<ShopProps> = ({
                     {typeLabel[shotType]}
                   </h2>
                   <span className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
-                    Equipped: {items.find(item => item.id === loadout[shotType])?.player || 'None'}
+                    {shotType === 'serve'
+                      ? `1st: ${items.find(item => item.id === loadout.serveFirst)?.player || 'None'} • 2nd: ${items.find(item => item.id === loadout.serveSecond)?.player || 'None'}`
+                      : `Equipped: ${items.find(item => item.id === loadout[shotType])?.player || 'None'}`}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {itemsByType[shotType].map(item => {
                     const owned = ownedIds.has(item.id);
-                    const equipped = loadout[shotType] === item.id;
+                    const equipped =
+                      shotType === 'serve'
+                        ? loadout.serveFirst === item.id || loadout.serveSecond === item.id
+                        : loadout[shotType] === item.id;
                     return (
                       <div
                         key={item.id}
@@ -140,10 +147,35 @@ const Shop: React.FC<ShopProps> = ({
                             >
                               Buy
                             </button>
+                          ) : shotType === 'serve' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onEquip(item, 'serveFirst')}
+                                className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
+                                  loadout.serveFirst === item.id
+                                    ? 'border-emerald-300/70 text-emerald-200'
+                                    : 'border-white/20 bg-white/5 hover:bg-white/10'
+                                }`}
+                              >
+                                {loadout.serveFirst === item.id ? '1st Equipped' : 'Equip 1st'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onEquip(item, 'serveSecond')}
+                                className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
+                                  loadout.serveSecond === item.id
+                                    ? 'border-emerald-300/70 text-emerald-200'
+                                    : 'border-white/20 bg-white/5 hover:bg-white/10'
+                                }`}
+                              >
+                                {loadout.serveSecond === item.id ? '2nd Equipped' : 'Equip 2nd'}
+                              </button>
+                            </>
                           ) : (
                             <button
                               type="button"
-                              onClick={() => onEquip(item)}
+                              onClick={() => onEquip(item, shotType)}
                               className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
                                 equipped
                                   ? 'border-emerald-300/70 text-emerald-200'
@@ -174,7 +206,10 @@ const Shop: React.FC<ShopProps> = ({
               </h3>
               <div className="mt-4 space-y-3 text-[10px] uppercase tracking-widest text-slate-400">
                 <div>
-                  Serve: {items.find(item => item.id === loadout.serve)?.player || 'None'}
+                  1st Serve: {items.find(item => item.id === loadout.serveFirst)?.player || 'None'}
+                </div>
+                <div>
+                  2nd Serve: {items.find(item => item.id === loadout.serveSecond)?.player || 'None'}
                 </div>
                 <div>
                   Forehand: {items.find(item => item.id === loadout.forehand)?.player || 'None'}
@@ -185,7 +220,7 @@ const Shop: React.FC<ShopProps> = ({
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
                 <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  Serve PWR {stats.serve.power}
+                  1st PWR {stats.serveFirst.power}
                 </div>
                 <div className="bg-black/30 rounded-full px-3 py-1 text-center">
                   FH CTR {stats.forehand.control}

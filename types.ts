@@ -37,7 +37,8 @@ export type ShotStats = {
 };
 
 export type PlayerStats = {
-  serve: ShotStats;
+  serveFirst: ShotStats;
+  serveSecond: ShotStats;
   forehand: ShotStats;
   backhand: ShotStats;
 };
@@ -51,7 +52,8 @@ export type ShopItem = {
 };
 
 export type Loadout = {
-  serve: string;
+  serveFirst: string;
+  serveSecond: string;
   forehand: string;
   backhand: string;
 };

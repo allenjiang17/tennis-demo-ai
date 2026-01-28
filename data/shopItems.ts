@@ -5,7 +5,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'pro-serve',
     player: 'Pro',
     shot: 'serve',
-    stats: { power: 62, spin: 40, control: 55, shape: 50 },
+    stats: { power: 62, spin: 50, control: 55, shape: 50 },
     price: 0,
   },
   {

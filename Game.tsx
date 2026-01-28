@@ -5,16 +5,22 @@ import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
 
 const AI_STATS: PlayerStats = {
-  serve: { power: 40, spin: 35, control: 52, shape: 50 },
+  serveFirst: { power: 40, spin: 35, control: 52, shape: 50 },
+  serveSecond: { power: 40, spin: 35, control: 52, shape: 50 },
   forehand: { power: 35, spin: 30, control: 54, shape: 60 },
   backhand: { power: 70, spin: 30, control: 50, shape: 55 },
 };
 
 const AI_SPEED = 0.5; // Approximately half of player speed (0.8)
 const AI_COURT_BOUNDS = { MIN_Y: 0, MAX_Y: 45 };
-const SERVE_CONFIG = {
-  flat: { duration: 850, faultChance: 0.28, bounceYTop: 35, bounceYBottom: 65 },
-  kick: { duration: 1150, faultChance: 0.12, bounceYTop: 40, bounceYBottom: 60 },
+const SERVE_BASE_DURATION = 900;
+const SERVE_TARGET_Y = { top: 35, bottom: 65 };
+const SERVE_NET_Y = 50;
+const SERVE_JITTER_MAX = 10;
+const SERVE_BOX_Y = { topMin: 25, topMax: 50, bottomMin: 50, bottomMax: 75 };
+const SERVE_TARGET_X = {
+  deuce: { wide: 18, middle: 46 },
+  ad: { wide: 82, middle: 54 },
 };
 
 type GameProps = {
@@ -195,6 +201,20 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     }, 600);
   }, []);
 
+  const playServeFault = useCallback((start: { x: number; y: number }, target: { x: number; y: number }, duration: number) => {
+    isBallLiveRef.current = false;
+    setCurrentAnimDuration(0);
+    setBallPos({ x: start.x, y: start.y });
+    shotStartPosRef.current = { x: start.x, y: start.y };
+    shotEndPosRef.current = { x: target.x, y: target.y };
+    shotStartTimeRef.current = performance.now();
+    shotDurationRef.current = duration;
+    setTimeout(() => {
+      setCurrentAnimDuration(duration);
+      setBallPos({ x: target.x, y: target.y });
+    }, 20);
+  }, []);
+
   const triggerAiCommentary = async (quality: ShotQuality) => {
     const text = 'Wow!';
     setCommentary(text);
@@ -204,6 +224,30 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     const multiplier = 1.2 - (power / 100) * 0.4;
     return Math.max(200, baseDuration * multiplier);
   }, []);
+
+  const getServeNetChance = useCallback((spin: number) => {
+    const clamped = Math.max(0, Math.min(100, spin));
+    return Math.max(0.05, 0.35 - (clamped / 100) * 0.25);
+  }, []);
+
+  const getServeStats = useCallback((owner: 'player' | 'opponent') => {
+    if (owner === 'player') {
+      return serveNumber === 1 ? playerStats.serveFirst : playerStats.serveSecond;
+    }
+    return serveNumber === 1 ? AI_STATS.serveFirst : AI_STATS.serveSecond;
+  }, [playerStats, serveNumber]);
+
+  const getServeJitter = useCallback((control: number) => {
+    const clamped = Math.max(0, Math.min(100, control));
+    const radius = ((100 - clamped) / 100) * SERVE_JITTER_MAX;
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.random() * radius;
+    return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+  }, []);
+
+  const shouldServeHitNet = useCallback((spin: number) => (
+    Math.random() < getServeNetChance(spin)
+  ), [getServeNetChance]);
 
   const getControlRadius = useCallback((control: number) => (
     PHYSICS.HIT_RADIUS * (0.7 + (control / 100) * 0.6)
@@ -240,6 +284,15 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     || y < PHYSICS.COURT_BOUNDS.MIN_Y
     || y > PHYSICS.COURT_BOUNDS.MAX_Y
   ), []);
+
+  const isServeInBox = useCallback((serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad', x: number, y: number) => {
+    const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
+    const minX = effectiveSide === 'deuce' ? PHYSICS.COURT_BOUNDS.MIN_X : 50;
+    const maxX = effectiveSide === 'deuce' ? 50 : PHYSICS.COURT_BOUNDS.MAX_X;
+    const minY = serveOwner === 'player' ? SERVE_BOX_Y.topMin : SERVE_BOX_Y.bottomMin;
+    const maxY = serveOwner === 'player' ? SERVE_BOX_Y.topMax : SERVE_BOX_Y.bottomMax;
+    return x >= minX && x <= maxX && y >= minY && y <= maxY;
+  }, []);
 
   const getInBoundsTarget = useCallback((startX: number, startY: number, targetX: number, targetY: number) => {
     if (!isOutOfBounds(targetX, targetY)) return { x: targetX, y: targetY };
@@ -288,12 +341,10 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
   const getServeTargetX = useCallback(
     (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad', target: 'wide' | 'middle') => {
       const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
-      if (target === 'wide') {
-        if (effectiveSide === 'deuce') return 16 + Math.random() * 8;
-        return 76 + Math.random() * 8;
+      if (effectiveSide === 'deuce') {
+        return target === 'wide' ? SERVE_TARGET_X.deuce.wide : SERVE_TARGET_X.deuce.middle;
       }
-      if (effectiveSide === 'deuce') return 40 + Math.random() * 6;
-      return 54 + Math.random() * 6;
+      return target === 'wide' ? SERVE_TARGET_X.ad.wide : SERVE_TARGET_X.ad.middle;
     },
     []
   );
@@ -600,12 +651,23 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     
     if ((e.code === 'Space' || e.code === 'KeyX') && gameState.status === GameStatus.PLAYING) {
       e.preventDefault();
-      if (isServePending && server === 'player') {
-        const serveType = e.code === 'KeyX' ? 'kick' : 'flat';
-        const config = SERVE_CONFIG[serveType];
-        const serveDuration = getPowerDuration(config.duration, playerStats.serve.power);
-        if (Math.random() < config.faultChance) {
+      if (isServePending && server === 'player' && e.code === 'Space') {
+        const serveStats = getServeStats('player');
+        const serveDuration = getPowerDuration(SERVE_BASE_DURATION, serveStats.power);
+        const p = currentPlayerPosRef.current;
+        const targetX = getServeTargetX('player', serveSide, serveTarget);
+        const jitter = getServeJitter(serveStats.control);
+        let targetPoint = { x: targetX + jitter.x, y: SERVE_TARGET_Y.top + jitter.y };
+        const netFault = shouldServeHitNet(serveStats.spin);
+        const outFault = !netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y);
+        if (netFault) {
+          targetPoint = { x: targetX, y: SERVE_NET_Y };
+        }
+
+        if (netFault || outFault) {
           triggerFeedback("FAULT!", 700);
+          setIsServePending(false);
+          playServeFault(p, targetPoint, serveDuration);
           if (serveNumber === 1) {
             setTimeout(() => {
               setServeNumber(2);
@@ -624,18 +686,9 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         setServeNumber(1);
         serveInProgressRef.current = false;
 
-        const p = currentPlayerPosRef.current;
-        const targetX = Math.max(15, Math.min(85, getServeTargetX('player', serveSide, serveTarget)));
-        const targetPoint = getInBoundsTarget(p.x, p.y, targetX, config.bounceYTop);
-        const serveBounce = getBouncePoint(
-          p.x,
-          p.y,
-          targetPoint.x,
-          targetPoint.y,
-          playerStats.serve.power,
-          playerStats.serve.spin
-        );
-        setLastStroke(targetX < p.x ? 'BH' : 'FH');
+        const serveBounce = targetPoint;
+
+        setLastStroke(targetPoint.x < p.x ? 'BH' : 'FH');
         setIsSwinging(true);
         setTimeout(() => setIsSwinging(false), 250);
         playHitSound(true);
@@ -649,6 +702,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         });
         return;
       }
+      if (isServePending) return;
       const isDropShot = e.code === 'KeyX';
       
       const bX = ballHitPosRef.current.x;
@@ -725,7 +779,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         bounceY: bounce.y,
       });
     }
-  }, [executePlayerShot, gameState.status, getBouncePoint, getInBoundsTarget, getPowerDuration, getServeTargetX, getTimingScale, isBallLiveRef, playHitSound, playerHitRadiusBH, playerHitRadiusFH, playerStats, resetPoint, server, serveNumber, serveSide, serveTarget, triggerAiCommentary, triggerFeedback, isServePending]);
+  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, getTimingScale, isBallLiveRef, isServeInBox, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerAiCommentary, triggerFeedback, isServePending]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);
@@ -743,6 +797,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
   useEffect(() => {
     if (gameState.status !== GameStatus.PLAYING || !isServePending) return;
     const serverPos = server === 'player' ? playerPos : aiPos;
+    setCurrentAnimDuration(0);
     setBallPos({ x: serverPos.x, y: serverPos.y });
     shotStartPosRef.current = { x: serverPos.x, y: serverPos.y };
     shotEndPosRef.current = { x: serverPos.x, y: serverPos.y };
@@ -779,16 +834,27 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     if (gameState.status !== GameStatus.PLAYING || !isServePending || server !== 'opponent') return;
     if (serveInProgressRef.current) return;
     serveInProgressRef.current = true;
-    const serveType = Math.random() < 0.5 ? 'flat' : 'kick';
     const timeoutId = setTimeout(() => {
-      const config = SERVE_CONFIG[serveType];
-      const serveDuration = getPowerDuration(config.duration, AI_STATS.serve.power);
-        if (Math.random() < config.faultChance) {
-          triggerFeedback("FAULT!", 700);
-          if (serveNumber === 1) {
-            setTimeout(() => {
-              setServeNumber(2);
-              setIsServePending(true);
+      const serveStats = getServeStats('opponent');
+      const serveDuration = getPowerDuration(SERVE_BASE_DURATION, serveStats.power);
+      const start = currentAiPosRef.current;
+      const serveTargetX = getServeTargetX('opponent', serveSide, Math.random() < 0.5 ? 'wide' : 'middle');
+      const jitter = getServeJitter(serveStats.control);
+      let targetPoint = { x: serveTargetX + jitter.x, y: SERVE_TARGET_Y.bottom + jitter.y };
+      const netFault = shouldServeHitNet(serveStats.spin);
+      const outFault = !netFault && !isServeInBox('opponent', serveSide, targetPoint.x, targetPoint.y);
+      if (netFault) {
+        targetPoint = { x: serveTargetX, y: SERVE_NET_Y };
+      }
+
+      if (netFault || outFault) {
+        triggerFeedback("FAULT!", 700);
+        setIsServePending(false);
+        playServeFault(start, targetPoint, serveDuration);
+        if (serveNumber === 1) {
+          setTimeout(() => {
+            setServeNumber(2);
+            setIsServePending(true);
             serveInProgressRef.current = false;
           }, serveDuration + 100);
         } else {
@@ -803,9 +869,6 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       setServeNumber(1);
       serveInProgressRef.current = false;
 
-      const start = currentAiPosRef.current;
-      const serveTargetX = getServeTargetX('opponent', serveSide, Math.random() < 0.5 ? 'wide' : 'middle');
-      const endX = Math.max(15, Math.min(85, serveTargetX));
       const outY = 112;
       const duration = serveDuration;
 
@@ -820,15 +883,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         shotStartTimeRef.current = performance.now();
         shotDurationRef.current = duration;
         shotStartPosRef.current = { x: start.x, y: start.y };
-        const targetPoint = getInBoundsTarget(start.x, start.y, endX, config.bounceYBottom);
-        const serveBounce = getBouncePoint(
-          start.x,
-          start.y,
-          targetPoint.x,
-          targetPoint.y,
-          AI_STATS.serve.power,
-          AI_STATS.serve.spin
-        );
+        const serveBounce = targetPoint;
         shotEndPosRef.current = { x: serveBounce.x, y: serveBounce.y };
         setCurrentAnimDuration(duration);
         setBallPos({ x: serveBounce.x, y: serveBounce.y });
@@ -860,7 +915,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       }, 50);
     }, 600);
     return () => clearTimeout(timeoutId);
-  }, [addBounceMarker, gameState.status, getBouncePoint, getInBoundsTarget, getPowerDuration, getServeTargetX, isServePending, playHitSound, resetPoint, serveNumber, server, serveSide, triggerFeedback]);
+  }, [addBounceMarker, gameState.status, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, playHitSound, playServeFault, resetPoint, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback]);
 
   const startGame = () => {
     setGameState(prev => ({
@@ -882,6 +937,17 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     setAiPos(resetAiPos);
     currentAiPosRef.current = resetAiPos;
   };
+
+  const serveUiStats = getServeStats('player');
+  const serveNetChance = getServeNetChance(serveUiStats.spin);
+  const serveDebug = isServePending && server === 'player'
+    ? {
+        x: getServeTargetX('player', serveSide, serveTarget),
+        y: SERVE_TARGET_Y.top,
+        radius: ((100 - Math.min(100, Math.max(0, serveUiStats.control))) / 100) * SERVE_JITTER_MAX,
+        visible: true,
+      }
+    : undefined;
 
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center select-none bg-slate-950 text-white overflow-hidden font-inter">
@@ -927,7 +993,19 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
           {isServePending && server === 'player' && (
             <>
               <div className="mt-2 text-[10px] font-orbitron uppercase tracking-widest text-emerald-300/90">
-                Space: Flat • X: Kick
+                Space: Serve
+              </div>
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-[9px] font-orbitron uppercase tracking-widest text-white/60">
+                  <span>Net Risk</span>
+                  <span>{Math.round(serveNetChance * 100)}%</span>
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-400 via-yellow-300 to-red-500"
+                    style={{ width: `${Math.max(0, Math.min(100, serveNetChance * 100))}%` }}
+                  />
+                </div>
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <button
@@ -961,6 +1039,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
           playerHitRadiusBH={playerHitRadiusBH}
           aiHitRadiusFH={aiHitRadiusFH}
           aiHitRadiusBH={aiHitRadiusBH}
+          serveDebug={serveDebug}
           aiSwinging={isAiSwinging}
           animationDuration={currentAnimDuration}
           lastStroke={lastStroke}
