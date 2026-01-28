@@ -240,7 +240,7 @@ const App: React.FC = () => {
       currentAiPosRef.current = resetAiPos;
       setLastStroke(null);
       setGameState(prev => {
-        if (prev.player.score >= 5 || prev.opponent.score >= 5) return { ...prev, status: GameStatus.GAME_OVER };
+        if (prev.player.score >= 10 || prev.opponent.score >= 10) return { ...prev, status: GameStatus.GAME_OVER };
         return { ...prev, status: GameStatus.PLAYING };
       });
       if (gameState.player.score < 5 && gameState.opponent.score < 5) {
