@@ -104,6 +104,9 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       if (gameState.status === GameStatus.PLAYING) {
         // Player Movement
         setPlayerPos(prev => {
+          if (isServePending && server === 'player') {
+            return prev;
+          }
           let newX = prev.x;
           let newY = prev.y;
           if (keysPressed.current.has('ArrowLeft')) newX -= PHYSICS.PLAYER_SPEED;
@@ -161,7 +164,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     };
     frameId = requestAnimationFrame(moveLoop);
     return () => cancelAnimationFrame(frameId);
-  }, [gameState.status, isMeterHolding]);
+  }, [gameState.status, isMeterHolding, isServePending, server]);
 
   const playHitSound = useCallback((isPlayer: boolean) => {
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -649,6 +652,10 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
     
+    if (isServePending && server === 'player' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
+      setServeTarget(prev => (prev === 'wide' ? 'middle' : 'wide'));
+      return;
+    }
     if ((e.code === 'Space' || e.code === 'KeyX') && gameState.status === GameStatus.PLAYING) {
       e.preventDefault();
       if (isServePending && server === 'player' && e.code === 'Space') {
@@ -814,7 +821,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     if (server === 'player') {
       const serverX = isDeuce ? 70 : 30;
       const receiverX = isDeuce ? 30 : 70;
-      setPlayerPos(prev => ({ ...prev, x: serverX, y: 106 }));
+      setPlayerPos(prev => ({ ...prev, x: serverX, y: 100 }));
       setAiPos(prev => ({ ...prev, x: receiverX, y: 0 }));
       currentAiPosRef.current = { ...currentAiPosRef.current, x: receiverX, y: 0 };
       aiTargetXRef.current = receiverX;
@@ -824,7 +831,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       const receiverX = isDeuce ? 30 : 70;
       setAiPos(prev => ({ ...prev, x: serverX, y: 0 }));
       currentAiPosRef.current = { ...currentAiPosRef.current, x: serverX, y: 0 };
-      setPlayerPos(prev => ({ ...prev, x: receiverX, y: 106 }));
+      setPlayerPos(prev => ({ ...prev, x: receiverX, y: 100 }));
       aiTargetXRef.current = serverX;
       aiTargetYRef.current = 0;
     }
@@ -992,9 +999,6 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
           </div>
           {isServePending && server === 'player' && (
             <>
-              <div className="mt-2 text-[10px] font-orbitron uppercase tracking-widest text-emerald-300/90">
-                Space: Serve
-              </div>
               <div className="mt-3">
                 <div className="flex items-center justify-between text-[9px] font-orbitron uppercase tracking-widest text-white/60">
                   <span>Net Risk</span>
