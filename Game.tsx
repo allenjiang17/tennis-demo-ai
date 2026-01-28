@@ -595,8 +595,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     const volleyStroke = volleyTarget.x < aiNow.x ? 'BH' : 'FH';
     const aiVolleyRadius = volleyStroke === 'FH' ? aiVolleyRadiusFH : aiVolleyRadiusBH;
     const aiVolleyDist = Math.hypot(aiNow.x - volleyTarget.x, aiNow.y - volleyTarget.y);
-    const aiWillVolley = aiVolleyCandidate;
-    const aiCanVolley = aiVolleyDist < aiVolleyRadius;
+    const aiWillVolley = aiVolleyCandidate && aiVolleyDist < aiVolleyRadius;
     const aiBounceY = bounceY;
     const dropStopY = Math.max(6, aiBounceY - 6);
     const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 2, aiBounceY - 10);
@@ -631,12 +630,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
 
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
       ballTimeoutRef.current = setTimeout(() => {
-        if (aiCanVolley) {
-          startAiShot({ x: volleyTarget.x, y: volleyTarget.y });
-        } else {
-          triggerFeedback("MISSED!", 600);
-          resetPoint('player');
-        }
+        startAiShot({ x: volleyTarget.x, y: volleyTarget.y });
       }, volleyDuration);
       return;
     }
@@ -907,6 +901,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           targetX = 80 + (20 - 80) * lerpT;
         }
         triggerFeedback("DROP SHOT!", 700);
+      } else if (isVolley) {
+        if (stroke === 'FH') {
+          targetX = 4.5 + (95.5 - 4.5) * lerpT;
+        } else {
+          targetX = 95.5 + (4.5 - 95.5) * lerpT;
+        }
+        triggerFeedback("VOLLEY!", 700);
       } else if (stroke === 'FH') {
         targetX = 4.5 + (95.5 - 4.5) * lerpT;
         triggerFeedback(timingFactor < -0.3 ? "CROSS COURT FH!" : timingFactor > 0.3 ? "INSIDE-OUT FH!" : "CLEAN FH!", 700);
@@ -916,7 +917,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
       }
       
       triggerAiCommentary(ShotQuality.PERFECT);
-      const baseHitSpeed = isDropShot ? 1000 : 600;
+      const baseHitSpeed = isDropShot ? 1200 : 800;
       const hitPower = stroke === 'FH' ? playerStats.forehand.power : playerStats.backhand.power;
       const hitSpin = stroke === 'FH' ? playerStats.forehand.spin : playerStats.backhand.spin;
       const hitSpeed = getPowerDuration(baseHitSpeed, hitPower);
