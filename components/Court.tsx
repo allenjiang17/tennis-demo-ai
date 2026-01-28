@@ -57,8 +57,12 @@ const Court: React.FC<CourtProps> = ({
   const playableHeight = 100 - playableInsetTop - playableInsetBottom;
 
   const mapToCourt = (position: { x: number; y: number }) => ({
-    x: playableInsetX + (position.x * playableWidth) / 100,
-    y: playableInsetTop + (position.y * playableHeight) / 100,
+    x: playableInsetX
+      + ((position.x - PHYSICS.COURT_BOUNDS.MIN_X) * playableWidth)
+      / (PHYSICS.COURT_BOUNDS.MAX_X - PHYSICS.COURT_BOUNDS.MIN_X),
+    y: playableInsetTop
+      + ((position.y - PHYSICS.COURT_BOUNDS.MIN_Y) * playableHeight)
+      / (PHYSICS.COURT_BOUNDS.MAX_Y - PHYSICS.COURT_BOUNDS.MIN_Y),
   });
 
   const ballOnCourt = mapToCourt(ballPosition);

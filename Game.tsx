@@ -214,6 +214,18 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     0.8 + (shape / 100) * 0.7
   ), []);
 
+  const getBounceY = useCallback((baseY: number, power: number, spin: number, direction: 'toTop' | 'toBottom') => {
+    const depthDelta = (power - spin) * 0.5;
+    return direction === 'toBottom' ? baseY + depthDelta : baseY - depthDelta;
+  }, []);
+
+  const isOutOfBounds = useCallback((x: number, y: number) => (
+    x < PHYSICS.COURT_BOUNDS.MIN_X
+    || x > PHYSICS.COURT_BOUNDS.MAX_X
+    || y < PHYSICS.COURT_BOUNDS.MIN_Y
+    || y > PHYSICS.COURT_BOUNDS.MAX_Y
+  ), []);
+
   const extendShotToY = useCallback((start: { x: number; y: number }, end: { x: number; y: number }, targetY: number) => {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -300,12 +312,12 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     const startX = startOverride?.x ?? currentAiPosRef.current.x;
     const startY = startOverride?.y ?? currentAiPosRef.current.y;
     const timingFactor = Math.max(-1, Math.min(1, (Math.random() * 2 - 1)));
-    const endX = Math.max(10, Math.min(90, currentPlayerPosRef.current.x + (Math.random() * 40 - 20)));
-    const endY = 72;
+    const endX = currentPlayerPosRef.current.x + (Math.random() * 40 - 20);
     const outY = 112;
     const aiStroke = ballHitPosRef.current.x < startX ? 'BH' : 'FH';
+    const aiStats = AI_STATS[aiStroke === 'FH' ? 'forehand' : 'backhand'];
     const baseDuration = Math.max(1600, PHYSICS.BALL_SPEED_BASE - (rallyCount * 80));
-    const duration = getPowerDuration(baseDuration, AI_STATS[aiStroke === 'FH' ? 'forehand' : 'backhand'].power);
+    const duration = getPowerDuration(baseDuration, aiStats.power);
     const outDuration = duration;
 
     setCurrentAnimDuration(0);
@@ -316,11 +328,13 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       isBallLiveRef.current = true;
       shotStartTimeRef.current = performance.now();
       shotDurationRef.current = duration;
-      const shapedEndX = Math.max(6, Math.min(94, endX + timingFactor * 12));
+      const shapedEndX = endX + timingFactor * 12;
+      const bounceY = getBounceY(72, aiStats.power, aiStats.spin, 'toBottom');
+      const isOut = isOutOfBounds(shapedEndX, bounceY);
       shotStartPosRef.current = { x: startX, y: startY };
-      shotEndPosRef.current = { x: shapedEndX, y: endY };
+      shotEndPosRef.current = { x: shapedEndX, y: bounceY };
       setCurrentAnimDuration(duration);
-      setBallPos({ x: shapedEndX, y: endY });
+      setBallPos({ x: shapedEndX, y: bounceY });
       
       // AI starts recovering to middle after hitting
       aiTargetXRef.current = 50;
@@ -329,14 +343,22 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
       ballTimeoutRef.current = setTimeout(() => {
         if (!isBallLiveRef.current) return;
-        addBounceMarker(shapedEndX, endY);
+        addBounceMarker(shapedEndX, bounceY);
+        if (isOut) {
+          isBallLiveRef.current = false;
+          triggerFeedback("OUT! ❌", 600);
+          ballTimeoutRef.current = setTimeout(() => {
+            resetPoint('player');
+          }, 600);
+          return;
+        }
         shotStartTimeRef.current = performance.now();
         shotDurationRef.current = outDuration;
         const travelX = shapedEndX - startX;
-        const travelY = endY - startY;
-        const continuationT = travelY !== 0 ? (outY - endY) / travelY : 0;
+        const travelY = bounceY - startY;
+        const continuationT = travelY !== 0 ? (outY - bounceY) / travelY : 0;
         const outX = shapedEndX + travelX * continuationT;
-        shotStartPosRef.current = { x: shapedEndX, y: endY };
+        shotStartPosRef.current = { x: shapedEndX, y: bounceY };
         shotEndPosRef.current = { x: outX, y: outY };
         setCurrentAnimDuration(outDuration);
         setBallPos({ x: outX, y: outY });
@@ -348,7 +370,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         }, outDuration);
       }, duration);
     }, 50);
-  }, [rallyCount, resetPoint, playHitSound, addBounceMarker, triggerFeedback, aiPos.x]);
+  }, [addBounceMarker, getBounceY, getPowerDuration, isOutOfBounds, playHitSound, rallyCount, resetPoint, triggerFeedback]);
 
   const executePlayerShot = useCallback((params: {
     startX: number;
@@ -356,17 +378,20 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     targetX: number;
     hitSpeed: number;
     isDropShot: boolean;
-    bounceYOverride?: number;
+    bounceY: number;
   }) => {
-    const { startX, startY, targetX, hitSpeed, isDropShot, bounceYOverride } = params;
-    const aiBounceY = bounceYOverride ?? (isDropShot ? 40 : 18);
+    const { startX, startY, targetX, hitSpeed, isDropShot, bounceY } = params;
+    const aiBounceY = bounceY;
     const dropStopY = Math.max(6, aiBounceY - 6);
     const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 2, aiBounceY - 10);
     const dropPostBounceMultiplier = isDropShot ? 2.0 : 1;
+    const isOut = isOutOfBounds(targetX, aiBounceY);
 
     // AI starts moving towards where the ball will land
-    aiTargetXRef.current = targetX;
-    aiTargetYRef.current = isDropShot ? dropStopY : Math.max(AI_COURT_BOUNDS.MIN_Y, contactY - 4);
+    if (!isOut) {
+      aiTargetXRef.current = targetX;
+      aiTargetYRef.current = isDropShot ? dropStopY : Math.max(AI_COURT_BOUNDS.MIN_Y, contactY - 4);
+    }
 
     shotStartTimeRef.current = performance.now();
     shotDurationRef.current = hitSpeed;
@@ -383,6 +408,14 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
 
     setTimeout(() => {
       addBounceMarker(targetX, aiBounceY);
+      if (isOut) {
+        triggerFeedback("OUT! ❌", 600);
+        if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+        ballTimeoutRef.current = setTimeout(() => {
+          resetPoint('opponent');
+        }, 600);
+        return;
+      }
       const dropStopX = extendShotToY({ x: startX, y: startY }, { x: targetX, y: aiBounceY }, dropStopY);
       const contactX = extendShotToY({ x: startX, y: startY }, { x: targetX, y: aiBounceY }, contactY);
       const aiCheckX = isDropShot ? dropStopX : contactX;
@@ -505,7 +538,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         }
       }
     }, hitSpeed);
-  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, extendShotToY, resetPoint, startAiShot, triggerFeedback]);
+  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, extendShotToY, isOutOfBounds, resetPoint, startAiShot, triggerFeedback]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
@@ -538,6 +571,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
 
         const p = currentPlayerPosRef.current;
         const targetX = Math.max(15, Math.min(85, getServeTargetX('player', serveSide, serveTarget)));
+        const serveBounceY = getBounceY(config.bounceYTop, playerStats.serve.power, playerStats.serve.spin, 'toTop');
         setLastStroke(targetX < p.x ? 'BH' : 'FH');
         setIsSwinging(true);
         setTimeout(() => setIsSwinging(false), 250);
@@ -548,7 +582,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
           targetX,
           hitSpeed: serveDuration,
           isDropShot: false,
-          bounceYOverride: config.bounceYTop,
+          bounceY: serveBounceY,
         });
         return;
       }
@@ -611,21 +645,23 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         triggerFeedback(timingFactor < -0.3 ? "CROSS COURT BH!" : timingFactor > 0.3 ? "INSIDE-OUT BH!" : "CLEAN BH!", 700);
       }
       
-      targetX = Math.max(4, Math.min(96, targetX));
-      
       triggerAiCommentary(ShotQuality.PERFECT);
       const baseHitSpeed = isDropShot ? 1250 : (stroke === 'FH' ? 900 : 1050);
       const hitPower = stroke === 'FH' ? playerStats.forehand.power : playerStats.backhand.power;
+      const hitSpin = stroke === 'FH' ? playerStats.forehand.spin : playerStats.backhand.spin;
       const hitSpeed = getPowerDuration(baseHitSpeed, hitPower);
+      const baseBounceY = isDropShot ? 40 : 18;
+      const bounceY = getBounceY(baseBounceY, hitPower, hitSpin, 'toTop');
       executePlayerShot({
         startX: bX,
         startY: bY,
         targetX,
         hitSpeed,
         isDropShot,
+        bounceY,
       });
     }
-  }, [executePlayerShot, gameState.status, getPowerDuration, getServeTargetX, getTimingScale, isBallLiveRef, playHitSound, playerHitRadiusBH, playerHitRadiusFH, playerStats, resetPoint, server, serveNumber, serveSide, serveTarget, triggerAiCommentary, triggerFeedback, isServePending]);
+  }, [executePlayerShot, gameState.status, getBounceY, getPowerDuration, getServeTargetX, getTimingScale, isBallLiveRef, playHitSound, playerHitRadiusBH, playerHitRadiusFH, playerStats, resetPoint, server, serveNumber, serveSide, serveTarget, triggerAiCommentary, triggerFeedback, isServePending]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);
@@ -706,7 +742,6 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       const start = currentAiPosRef.current;
       const serveTargetX = getServeTargetX('opponent', serveSide, Math.random() < 0.5 ? 'wide' : 'middle');
       const endX = Math.max(15, Math.min(85, serveTargetX));
-      const endY = 72;
       const outY = 112;
       const duration = serveDuration;
 
@@ -721,7 +756,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
         shotStartTimeRef.current = performance.now();
         shotDurationRef.current = duration;
         shotStartPosRef.current = { x: start.x, y: start.y };
-        const serveBounceY = config.bounceYBottom;
+        const serveBounceY = getBounceY(config.bounceYBottom, AI_STATS.serve.power, AI_STATS.serve.spin, 'toBottom');
         shotEndPosRef.current = { x: endX, y: serveBounceY };
         setCurrentAnimDuration(duration);
         setBallPos({ x: endX, y: serveBounceY });
@@ -753,7 +788,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       }, 50);
     }, 600);
     return () => clearTimeout(timeoutId);
-  }, [addBounceMarker, gameState.status, getPowerDuration, getServeTargetX, isServePending, playHitSound, resetPoint, serveNumber, server, serveSide, triggerFeedback]);
+  }, [addBounceMarker, gameState.status, getBounceY, getPowerDuration, getServeTargetX, isServePending, playHitSound, resetPoint, serveNumber, server, serveSide, triggerFeedback]);
 
   const startGame = () => {
     setGameState(prev => ({

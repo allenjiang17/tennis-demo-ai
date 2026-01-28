@@ -7,7 +7,7 @@ export const PHYSICS = {
   HIT_RADIUS: 12,         // Distance units for successful hit
   COURT_BOUNDS: {
     MIN_X: 5, MAX_X: 95,
-    MIN_Y: 55, MAX_Y: 95  // Player constrained to bottom half
+    MIN_Y: 5, MAX_Y: 95  // Full court lines
   },
   PLAYER_BOUNDS: {
     MIN_X: -10, MAX_X: 110,
