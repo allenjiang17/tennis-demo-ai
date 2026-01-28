@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { GameStatus, ShotQuality, GameState, PlayerStats } from './types';
 import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
@@ -9,6 +9,7 @@ const AI_STATS: PlayerStats = {
   serveSecond: { power: 40, spin: 35, control: 52, shape: 50 },
   forehand: { power: 35, spin: 30, control: 54, shape: 60 },
   backhand: { power: 70, spin: 30, control: 50, shape: 55 },
+  athleticism: { speed: 50, stamina: 50 },
 };
 
 const AI_SPEED = 0.2; // Approximately half of player speed (0.8)
@@ -97,22 +98,44 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     }, duration);
   }, []);
 
+  const getPlayerSpeed = useCallback(() => {
+    const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
+    const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
+    const baseMultiplier = 0.2 + (speedStat / 100) * 0.8;
+    const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
+    const fatigueRate = (1 - staminaStat / 100) * 0.05;
+    const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
+    return baseSpeed * staminaFactor;
+  }, [playerStats.athleticism.speed, playerStats.athleticism.stamina, rallyCount]);
+
+  const playerSpeedDebug = useMemo(() => {
+    const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
+    const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
+    const baseMultiplier = 0.2 + (speedStat / 100) * 0.8;
+    const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
+    const fatigueRate = (1 - staminaStat / 100) * 0.05;
+    const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
+    const actualSpeed = baseSpeed * staminaFactor;
+    return { baseSpeed, staminaFactor, actualSpeed };
+  }, [playerStats.athleticism.speed, playerStats.athleticism.stamina, rallyCount]);
+
   // Movement loop
   useEffect(() => {
     let frameId: number;
     const moveLoop = () => {
       if (gameState.status === GameStatus.PLAYING) {
         // Player Movement
+        const playerSpeed = getPlayerSpeed();
         setPlayerPos(prev => {
           if (isServePending && server === 'player') {
             return prev;
           }
           let newX = prev.x;
           let newY = prev.y;
-          if (keysPressed.current.has('ArrowLeft')) newX -= PHYSICS.PLAYER_SPEED;
-          if (keysPressed.current.has('ArrowRight')) newX += PHYSICS.PLAYER_SPEED;
-          if (keysPressed.current.has('ArrowUp')) newY -= PHYSICS.PLAYER_SPEED;
-          if (keysPressed.current.has('ArrowDown')) newY += PHYSICS.PLAYER_SPEED;
+          if (keysPressed.current.has('ArrowLeft')) newX -= playerSpeed;
+          if (keysPressed.current.has('ArrowRight')) newX += playerSpeed;
+          if (keysPressed.current.has('ArrowUp')) newY -= playerSpeed;
+          if (keysPressed.current.has('ArrowDown')) newY += playerSpeed;
           return {
             x: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_X, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_X, newX)),
             y: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_Y, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_Y, newY))
@@ -164,7 +187,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     };
     frameId = requestAnimationFrame(moveLoop);
     return () => cancelAnimationFrame(frameId);
-  }, [gameState.status, isMeterHolding, isServePending, server]);
+  }, [gameState.status, getPlayerSpeed, isMeterHolding, isServePending, server]);
 
   const playHitSound = useCallback((isPlayer: boolean) => {
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -227,6 +250,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
     const multiplier = 1.2 - (power / 100) * 0.4;
     return Math.max(200, baseDuration * multiplier);
   }, []);
+
 
   const getServeNetChance = useCallback((spin: number) => {
     const clamped = Math.max(0, Math.min(100, spin));
@@ -1029,6 +1053,20 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
               </div>
             </>
           )}
+          <div className="mt-4 border-t border-white/10 pt-3 text-[9px] font-orbitron uppercase tracking-widest text-white/70">
+            <div className="flex items-center justify-between">
+              <span>Speed</span>
+              <span>{playerSpeedDebug.actualSpeed.toFixed(2)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-white/50">
+              <span>Base</span>
+              <span>{playerSpeedDebug.baseSpeed.toFixed(2)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-white/50">
+              <span>Stamina</span>
+              <span>{Math.round(playerSpeedDebug.staminaFactor * 100)}%</span>
+            </div>
+          </div>
         </div>
       </div>
 

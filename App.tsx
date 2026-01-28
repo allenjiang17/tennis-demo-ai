@@ -9,6 +9,7 @@ const DEFAULT_LOADOUT: Loadout = {
   serveSecond: 'pro-serve',
   forehand: 'pro-forehand',
   backhand: 'pro-backhand',
+  athleticism: 'pro-athleticism',
 };
 
 const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
@@ -17,22 +18,30 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const serveSecond = byId.get(loadout.serveSecond);
   const forehand = byId.get(loadout.forehand);
   const backhand = byId.get(loadout.backhand);
-  if (!serveFirst || !serveSecond || !forehand || !backhand) {
+  const athleticism = byId.get(loadout.athleticism);
+  if (!serveFirst || !serveSecond || !forehand || !backhand || !athleticism) {
     return {
       serveFirst: { power: 50, spin: 50, control: 50, shape: 50 },
       serveSecond: { power: 50, spin: 50, control: 50, shape: 50 },
       forehand: { power: 50, spin: 50, control: 50, shape: 50 },
       backhand: { power: 50, spin: 50, control: 50, shape: 50 },
+      athleticism: { speed: 50, stamina: 50 },
     };
   }
-  return { serveFirst, serveSecond, forehand, backhand };
+  return {
+    serveFirst: serveFirst as PlayerStats['serveFirst'],
+    serveSecond: serveSecond as PlayerStats['serveSecond'],
+    forehand: forehand as PlayerStats['forehand'],
+    backhand: backhand as PlayerStats['backhand'],
+    athleticism: athleticism as PlayerStats['athleticism'],
+  };
 };
 
 const App: React.FC = () => {
   const [screen, setScreen] = useState<'shop' | 'game'>('shop');
   const [wallet, setWallet] = useState(1000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
-    new Set(['pro-serve', 'pro-forehand', 'pro-backhand'])
+    new Set(['pro-serve', 'pro-forehand', 'pro-backhand', 'pro-athleticism'])
   );
   const [loadout, setLoadout] = useState<Loadout>(DEFAULT_LOADOUT);
 

@@ -5,7 +5,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'pro-serve',
     player: 'Pro',
     shot: 'serve',
-    stats: { power: 70, spin: 50, control: 55, shape: 50 },
+    stats: { power: 40, spin: 80, control: 55, shape: 50 },
     price: 0,
   },
   {
@@ -70,6 +70,34 @@ export const SHOP_ITEMS: ShopItem[] = [
     shot: 'serve',
     stats: { power: 130, spin: 20, control: 58, shape: 50 },
     price: 340,
+  },
+  {
+    id: 'pro-athleticism',
+    player: 'Pro',
+    shot: 'athleticism',
+    stats: { speed: 5, stamina: 20 },
+    price: 0,
+  },
+  {
+    id: 'djokovic-athleticism',
+    player: 'Djokovic',
+    shot: 'athleticism',
+    stats: { speed: 70, stamina: 85 },
+    price: 320,
+  },
+  {
+    id: 'alcaraz-athleticism',
+    player: 'Alcaraz',
+    shot: 'athleticism',
+    stats: { speed: 82, stamina: 70 },
+    price: 340,
+  },
+  {
+    id: 'nadal-athleticism',
+    player: 'Nadal',
+    shot: 'athleticism',
+    stats: { speed: 68, stamina: 90 },
+    price: 320,
   },
   {
     id: 'henin-backhand',

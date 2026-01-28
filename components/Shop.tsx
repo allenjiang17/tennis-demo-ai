@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loadout, PlayerStats, ShopItem, ShotType } from '../types';
+import { Loadout, PlayerStats, ShopItem, ShotType, ShotStats, AthleticismStats } from '../types';
 
 type ShopProps = {
   items: ShopItem[];
@@ -15,6 +15,7 @@ const typeLabel: Record<ShotType, string> = {
   serve: 'Serve',
   forehand: 'Forehand',
   backhand: 'Backhand',
+  athleticism: 'Athleticism',
 };
 
 const buildStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
@@ -23,15 +24,23 @@ const buildStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const serveSecond = byId.get(loadout.serveSecond);
   const forehand = byId.get(loadout.forehand);
   const backhand = byId.get(loadout.backhand);
-  if (!serveFirst || !serveSecond || !forehand || !backhand) {
+  const athleticism = byId.get(loadout.athleticism);
+  if (!serveFirst || !serveSecond || !forehand || !backhand || !athleticism) {
     return {
       serveFirst: { power: 50, spin: 50, control: 50, shape: 50 },
       serveSecond: { power: 50, spin: 50, control: 50, shape: 50 },
       forehand: { power: 50, spin: 50, control: 50, shape: 50 },
       backhand: { power: 50, spin: 50, control: 50, shape: 50 },
+      athleticism: { speed: 50, stamina: 50 },
     };
   }
-  return { serveFirst, serveSecond, forehand, backhand };
+  return {
+    serveFirst: serveFirst as ShotStats,
+    serveSecond: serveSecond as ShotStats,
+    forehand: forehand as ShotStats,
+    backhand: backhand as ShotStats,
+    athleticism: athleticism as AthleticismStats,
+  };
 };
 
 const Shop: React.FC<ShopProps> = ({
@@ -48,6 +57,7 @@ const Shop: React.FC<ShopProps> = ({
     serve: items.filter(item => item.shot === 'serve'),
     forehand: items.filter(item => item.shot === 'forehand'),
     backhand: items.filter(item => item.shot === 'backhand'),
+    athleticism: items.filter(item => item.shot === 'athleticism'),
   };
 
   return (
@@ -113,18 +123,29 @@ const Shop: React.FC<ShopProps> = ({
                             <div className="text-sm font-orbitron">{item.price}</div>
                           </div>
                         </div>
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
-                          <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                            PWR {item.stats.power}
+                        {item.shot === 'athleticism' ? (
+                          <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
+                            <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                              SPD {(item.stats as AthleticismStats).speed}
+                            </div>
+                            <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                              STM {(item.stats as AthleticismStats).stamina}
+                            </div>
                           </div>
-                          <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                            SPN {item.stats.spin}
+                        ) : (
+                          <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
+                            <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                              PWR {(item.stats as ShotStats).power}
+                            </div>
+                            <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                              SPN {(item.stats as ShotStats).spin}
+                            </div>
+                            <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                              CTR {(item.stats as ShotStats).control}
+                            </div>
                           </div>
-                          <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                            CTR {item.stats.control}
-                          </div>
-                        </div>
-                        {item.shot !== 'serve' && (
+                        )}
+                        {item.shot !== 'serve' && item.shot !== 'athleticism' && (
                           <div className="mt-4">
                             <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-slate-400">
                               <span>Safe</span>
@@ -217,6 +238,9 @@ const Shop: React.FC<ShopProps> = ({
                 <div>
                   Backhand: {items.find(item => item.id === loadout.backhand)?.player || 'None'}
                 </div>
+                <div>
+                  Athleticism: {items.find(item => item.id === loadout.athleticism)?.player || 'None'}
+                </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
                 <div className="bg-black/30 rounded-full px-3 py-1 text-center">
@@ -227,6 +251,14 @@ const Shop: React.FC<ShopProps> = ({
                 </div>
                 <div className="bg-black/30 rounded-full px-3 py-1 text-center">
                   BH CTR {stats.backhand.control}
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
+                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                  SPD {stats.athleticism.speed}
+                </div>
+                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
+                  STM {stats.athleticism.stamina}
                 </div>
               </div>
             </div>

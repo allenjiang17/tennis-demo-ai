@@ -27,7 +27,7 @@ export interface GameState {
   difficulty: number;
 }
 
-export type ShotType = 'serve' | 'forehand' | 'backhand';
+export type ShotType = 'serve' | 'forehand' | 'backhand' | 'athleticism';
 
 export type ShotStats = {
   power: number;
@@ -36,18 +36,24 @@ export type ShotStats = {
   shape: number;
 };
 
+export type AthleticismStats = {
+  speed: number;
+  stamina: number;
+};
+
 export type PlayerStats = {
   serveFirst: ShotStats;
   serveSecond: ShotStats;
   forehand: ShotStats;
   backhand: ShotStats;
+  athleticism: AthleticismStats;
 };
 
 export type ShopItem = {
   id: string;
   player: string;
   shot: ShotType;
-  stats: ShotStats;
+  stats: ShotStats | AthleticismStats;
   price: number;
 };
 
@@ -56,4 +62,5 @@ export type Loadout = {
   serveSecond: string;
   forehand: string;
   backhand: string;
+  athleticism: string;
 };
