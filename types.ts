@@ -26,3 +26,32 @@ export interface GameState {
   lastShotQuality: ShotQuality;
   difficulty: number;
 }
+
+export type ShotType = 'serve' | 'forehand' | 'backhand';
+
+export type ShotStats = {
+  power: number;
+  spin: number;
+  control: number;
+  shape: number;
+};
+
+export type PlayerStats = {
+  serve: ShotStats;
+  forehand: ShotStats;
+  backhand: ShotStats;
+};
+
+export type ShopItem = {
+  id: string;
+  player: string;
+  shot: ShotType;
+  stats: ShotStats;
+  price: number;
+};
+
+export type Loadout = {
+  serve: string;
+  forehand: string;
+  backhand: string;
+};
