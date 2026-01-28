@@ -23,6 +23,20 @@ export const SHOP_ITEMS: ShopItem[] = [
     price: 0,
   },
   {
+    id: 'pro-fh-volley',
+    player: 'Pro',
+    shot: 'forehandVolley',
+    stats: { control: 55, accuracy: 50 },
+    price: 0,
+  },
+  {
+    id: 'pro-bh-volley',
+    player: 'Pro',
+    shot: 'backhandVolley',
+    stats: { control: 55, accuracy: 50 },
+    price: 0,
+  },
+  {
     id: 'federer-forehand',
     player: 'Federer',
     shot: 'forehand',
@@ -33,7 +47,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'sinner-forehand',
     player: 'Sinner',
     shot: 'forehand',
-    stats: { power: 120, spin: 90, control: 100, shape: 60 },
+    stats: { power: 100, spin: 90, control: 100, shape: 60 },
     price: 300,
   },
     {
@@ -56,6 +70,20 @@ export const SHOP_ITEMS: ShopItem[] = [
     shot: 'backhand',
     stats: { power: 72, spin: 60, control: 300, shape: 60 },
     price: 300,
+  },
+  {
+    id: 'federer-fh-volley',
+    player: 'Federer',
+    shot: 'forehandVolley',
+    stats: { control: 75, accuracy: 80 },
+    price: 280,
+  },
+  {
+    id: 'henin-bh-volley',
+    player: 'Henin',
+    shot: 'backhandVolley',
+    stats: { control: 72, accuracy: 78 },
+    price: 260,
   },
   {
     id: 'isner-kick-serve',

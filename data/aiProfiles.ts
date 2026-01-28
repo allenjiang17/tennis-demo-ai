@@ -10,6 +10,8 @@ export const AI_PROFILES: AiProfile[] = [
       serveSecond: 'pro-serve',
       forehand: 'djokovic-backhand',
       backhand: 'henin-backhand',
+      forehandVolley: 'pro-fh-volley',
+      backhandVolley: 'pro-bh-volley',
       athleticism: 'nadal-athleticism',
     },
     tendencies: {
@@ -27,6 +29,8 @@ export const AI_PROFILES: AiProfile[] = [
       serveSecond: 'isner-kick-serve',
       forehand: 'sinner-forehand',
       backhand: 'djokovic-backhand',
+      forehandVolley: 'federer-fh-volley',
+      backhandVolley: 'henin-bh-volley',
       athleticism: 'alcaraz-athleticism',
     },
     tendencies: {
@@ -44,6 +48,8 @@ export const AI_PROFILES: AiProfile[] = [
       serveSecond: 'pro-serve',
       forehand: 'federer-forehand',
       backhand: 'henin-backhand',
+      forehandVolley: 'federer-fh-volley',
+      backhandVolley: 'henin-bh-volley',
       athleticism: 'djokovic-athleticism',
     },
     tendencies: {

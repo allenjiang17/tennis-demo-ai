@@ -27,13 +27,18 @@ export interface GameState {
   difficulty: number;
 }
 
-export type ShotType = 'serve' | 'forehand' | 'backhand' | 'athleticism';
+export type ShotType = 'serve' | 'forehand' | 'backhand' | 'forehandVolley' | 'backhandVolley' | 'athleticism';
 
 export type ShotStats = {
   power: number;
   spin: number;
   control: number;
   shape: number;
+};
+
+export type VolleyStats = {
+  control: number;
+  accuracy: number;
 };
 
 export type AthleticismStats = {
@@ -46,6 +51,8 @@ export type PlayerStats = {
   serveSecond: ShotStats;
   forehand: ShotStats;
   backhand: ShotStats;
+  forehandVolley: VolleyStats;
+  backhandVolley: VolleyStats;
   athleticism: AthleticismStats;
 };
 
@@ -53,7 +60,7 @@ export type ShopItem = {
   id: string;
   player: string;
   shot: ShotType;
-  stats: ShotStats | AthleticismStats;
+  stats: ShotStats | VolleyStats | AthleticismStats;
   price: number;
 };
 
@@ -62,6 +69,8 @@ export type Loadout = {
   serveSecond: string;
   forehand: string;
   backhand: string;
+  forehandVolley: string;
+  backhandVolley: string;
   athleticism: string;
 };
 
