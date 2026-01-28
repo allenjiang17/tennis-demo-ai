@@ -27,7 +27,7 @@ export interface GameState {
   difficulty: number;
 }
 
-export type ShotType = 'serve' | 'forehand' | 'backhand' | 'forehandVolley' | 'backhandVolley' | 'athleticism';
+export type ShotType = 'serve' | 'forehand' | 'backhand' | 'volley' | 'athleticism';
 
 export type ShotStats = {
   power: number;
@@ -51,8 +51,7 @@ export type PlayerStats = {
   serveSecond: ShotStats;
   forehand: ShotStats;
   backhand: ShotStats;
-  forehandVolley: VolleyStats;
-  backhandVolley: VolleyStats;
+  volley: VolleyStats;
   athleticism: AthleticismStats;
 };
 
@@ -69,8 +68,7 @@ export type Loadout = {
   serveSecond: string;
   forehand: string;
   backhand: string;
-  forehandVolley: string;
-  backhandVolley: string;
+  volley: string;
   athleticism: string;
 };
 

@@ -11,8 +11,7 @@ const DEFAULT_LOADOUT: Loadout = {
   serveSecond: 'pro-serve',
   forehand: 'pro-forehand',
   backhand: 'pro-backhand',
-  forehandVolley: 'pro-fh-volley',
-  backhandVolley: 'pro-bh-volley',
+  volley: 'pro-volley',
   athleticism: 'pro-athleticism',
 };
 
@@ -22,17 +21,15 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const serveSecond = byId.get(loadout.serveSecond);
   const forehand = byId.get(loadout.forehand);
   const backhand = byId.get(loadout.backhand);
-  const forehandVolley = byId.get(loadout.forehandVolley);
-  const backhandVolley = byId.get(loadout.backhandVolley);
+  const volley = byId.get(loadout.volley);
   const athleticism = byId.get(loadout.athleticism);
-  if (!serveFirst || !serveSecond || !forehand || !backhand || !forehandVolley || !backhandVolley || !athleticism) {
+  if (!serveFirst || !serveSecond || !forehand || !backhand || !volley || !athleticism) {
     return {
       serveFirst: { power: 50, spin: 50, control: 50, shape: 50 },
       serveSecond: { power: 50, spin: 50, control: 50, shape: 50 },
       forehand: { power: 50, spin: 50, control: 50, shape: 50 },
       backhand: { power: 50, spin: 50, control: 50, shape: 50 },
-      forehandVolley: { control: 50, accuracy: 50 },
-      backhandVolley: { control: 50, accuracy: 50 },
+      volley: { control: 50, accuracy: 50 },
       athleticism: { speed: 50, stamina: 50 },
     };
   }
@@ -41,8 +38,7 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
     serveSecond: serveSecond as PlayerStats['serveSecond'],
     forehand: forehand as PlayerStats['forehand'],
     backhand: backhand as PlayerStats['backhand'],
-    forehandVolley: forehandVolley as PlayerStats['forehandVolley'],
-    backhandVolley: backhandVolley as PlayerStats['backhandVolley'],
+    volley: volley as PlayerStats['volley'],
     athleticism: athleticism as PlayerStats['athleticism'],
   };
 };
@@ -51,7 +47,7 @@ const App: React.FC = () => {
   const [screen, setScreen] = useState<'shop' | 'opponent' | 'game'>('shop');
   const [wallet, setWallet] = useState(5000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
-    new Set(['pro-serve', 'pro-forehand', 'pro-backhand', 'pro-fh-volley', 'pro-bh-volley', 'pro-athleticism'])
+    new Set(['pro-serve', 'pro-forehand', 'pro-backhand', 'pro-volley', 'pro-athleticism'])
   );
   const [loadout, setLoadout] = useState<Loadout>(DEFAULT_LOADOUT);
   const [selectedAi, setSelectedAi] = useState<AiProfile>(AI_PROFILES[0]);

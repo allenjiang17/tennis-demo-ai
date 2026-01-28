@@ -15,8 +15,7 @@ const typeLabel: Record<ShotType, string> = {
   serve: 'Serve',
   forehand: 'Forehand',
   backhand: 'Backhand',
-  forehandVolley: 'FH Volley',
-  backhandVolley: 'BH Volley',
+  volley: 'Volley',
   athleticism: 'Athleticism',
 };
 
@@ -26,17 +25,15 @@ const buildStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const serveSecond = byId.get(loadout.serveSecond);
   const forehand = byId.get(loadout.forehand);
   const backhand = byId.get(loadout.backhand);
-  const forehandVolley = byId.get(loadout.forehandVolley);
-  const backhandVolley = byId.get(loadout.backhandVolley);
+  const volley = byId.get(loadout.volley);
   const athleticism = byId.get(loadout.athleticism);
-  if (!serveFirst || !serveSecond || !forehand || !backhand || !forehandVolley || !backhandVolley || !athleticism) {
+  if (!serveFirst || !serveSecond || !forehand || !backhand || !volley || !athleticism) {
     return {
       serveFirst: { power: 50, spin: 50, control: 50, shape: 50 },
       serveSecond: { power: 50, spin: 50, control: 50, shape: 50 },
       forehand: { power: 50, spin: 50, control: 50, shape: 50 },
       backhand: { power: 50, spin: 50, control: 50, shape: 50 },
-      forehandVolley: { control: 50, accuracy: 50 },
-      backhandVolley: { control: 50, accuracy: 50 },
+      volley: { control: 50, accuracy: 50 },
       athleticism: { speed: 50, stamina: 50 },
     };
   }
@@ -45,8 +42,7 @@ const buildStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
     serveSecond: serveSecond as ShotStats,
     forehand: forehand as ShotStats,
     backhand: backhand as ShotStats,
-    forehandVolley: forehandVolley as VolleyStats,
-    backhandVolley: backhandVolley as VolleyStats,
+    volley: volley as VolleyStats,
     athleticism: athleticism as AthleticismStats,
   };
 };
@@ -65,8 +61,7 @@ const Shop: React.FC<ShopProps> = ({
     serve: items.filter(item => item.shot === 'serve'),
     forehand: items.filter(item => item.shot === 'forehand'),
     backhand: items.filter(item => item.shot === 'backhand'),
-    forehandVolley: items.filter(item => item.shot === 'forehandVolley'),
-    backhandVolley: items.filter(item => item.shot === 'backhandVolley'),
+    volley: items.filter(item => item.shot === 'volley'),
     athleticism: items.filter(item => item.shot === 'athleticism'),
   };
 
@@ -142,7 +137,7 @@ const Shop: React.FC<ShopProps> = ({
                               STM {(item.stats as AthleticismStats).stamina}
                             </div>
                           </div>
-                        ) : item.shot === 'forehandVolley' || item.shot === 'backhandVolley' ? (
+                        ) : item.shot === 'volley' ? (
                           <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
                             <div className="bg-black/30 rounded-full px-3 py-1 text-center">
                               CTR {(item.stats as VolleyStats).control}
@@ -164,7 +159,7 @@ const Shop: React.FC<ShopProps> = ({
                             </div>
                           </div>
                         )}
-                        {item.shot !== 'serve' && item.shot !== 'athleticism' && item.shot !== 'forehandVolley' && item.shot !== 'backhandVolley' && (
+                        {item.shot !== 'serve' && item.shot !== 'athleticism' && item.shot !== 'volley' && (
                           <div className="mt-4">
                             <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-slate-400">
                               <span>Safe</span>
@@ -258,10 +253,7 @@ const Shop: React.FC<ShopProps> = ({
                   Backhand: {items.find(item => item.id === loadout.backhand)?.player || 'None'}
                 </div>
                 <div>
-                  FH Volley: {items.find(item => item.id === loadout.forehandVolley)?.player || 'None'}
-                </div>
-                <div>
-                  BH Volley: {items.find(item => item.id === loadout.backhandVolley)?.player || 'None'}
+                  Volley: {items.find(item => item.id === loadout.volley)?.player || 'None'}
                 </div>
                 <div>
                   Athleticism: {items.find(item => item.id === loadout.athleticism)?.player || 'None'}
@@ -288,10 +280,10 @@ const Shop: React.FC<ShopProps> = ({
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
                 <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  FH VL CTR {stats.forehandVolley.control}
+                  VL CTR {stats.volley.control}
                 </div>
                 <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  BH VL CTR {stats.backhandVolley.control}
+                  VL ACC {stats.volley.accuracy}
                 </div>
               </div>
             </div>
