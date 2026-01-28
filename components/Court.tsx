@@ -14,7 +14,10 @@ interface CourtProps {
   ballHitPosition: { x: number; y: number };
   playerPosition: { x: number; y: number };
   aiPosition: { x: number; y: number };
-  aiReachRadius: number;
+  playerHitRadiusFH: number;
+  playerHitRadiusBH: number;
+  aiHitRadiusFH: number;
+  aiHitRadiusBH: number;
   aiSwinging: boolean;
   animationDuration: number;
   lastStroke: 'FH' | 'BH' | null;
@@ -27,7 +30,10 @@ const Court: React.FC<CourtProps> = ({
   ballHitPosition,
   playerPosition, 
   aiPosition,
-  aiReachRadius,
+  playerHitRadiusFH,
+  playerHitRadiusBH,
+  aiHitRadiusFH,
+  aiHitRadiusBH,
   aiSwinging,
   animationDuration, 
   lastStroke, 
@@ -60,11 +66,15 @@ const Court: React.FC<CourtProps> = ({
   const playerOnCourt = mapToCourt(playerPosition);
   const dx = ballHitOnCourt.x - playerOnCourt.x;
   const dy = ballHitOnCourt.y - playerOnCourt.y;
+  const activeHitRadius = dx < 0 ? playerHitRadiusBH : playerHitRadiusFH;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  const isInReach = distance < PHYSICS.HIT_RADIUS;
+  const isInReach = distance < activeHitRadius;
   const showHitDebug = true;
-  const hitRadiusX = (playableWidth * PHYSICS.HIT_RADIUS) / 100;
+  const hitRadiusX = (playableWidth * activeHitRadius) / 100;
   const aiOnCourt = mapToCourt(aiPosition);
+  const aiDx = ballHitOnCourt.x - aiOnCourt.x;
+  const aiActiveHitRadius = aiDx < 0 ? aiHitRadiusBH : aiHitRadiusFH;
+  const aiHitRadiusX = (playableWidth * aiActiveHitRadius) / 100;
 
   return (
     <div className="relative w-full h-full perspective-1000 overflow-hidden bg-slate-900 flex items-start justify-center">
@@ -125,6 +135,18 @@ const Court: React.FC<CourtProps> = ({
         </div>
 
         {/* AI Opponent - Uses Managed Position */}
+        {showHitDebug && (
+          <div
+            className="absolute pointer-events-none z-10 rounded-full border border-red-300/70 border-dashed aspect-square"
+            style={{
+              width: `${aiHitRadiusX * 2}%`,
+              left: `${aiOnCourt.x}%`,
+              top: `${aiOnCourt.y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
+
         <div 
           className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
           style={{ 
