@@ -7,11 +7,11 @@ export const PHYSICS = {
   HIT_RADIUS: 12,         // Distance units for successful hit
   COURT_BOUNDS: {
     MIN_X: 5, MAX_X: 95,
-    MIN_Y: 5, MAX_Y: 95  // Full court lines
+    MIN_Y: 0, MAX_Y: 180  // Full court lines
   },
   PLAYER_BOUNDS: {
     MIN_X: -10, MAX_X: 110,
-    MIN_Y: 40, MAX_Y: 110 // Allow run-off space beyond lines
+    MIN_Y: 72, MAX_Y: 198 // Allow run-off space beyond lines
   }
 };
 

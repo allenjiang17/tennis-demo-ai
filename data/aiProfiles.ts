@@ -15,7 +15,7 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.5,
-      homeY: 6,
+      homeY: 12,
       dropShotChance: 0.1,
     },
   },
@@ -33,7 +33,7 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.8,
-      homeY: 8,
+      homeY: 16,
       dropShotChance: 0.3,
     },
   },
@@ -51,7 +51,7 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.75,
-      homeY: 36,
+      homeY: 72,
       dropShotChance: 0.1,
     },
   },

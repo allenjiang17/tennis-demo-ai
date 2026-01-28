@@ -5,21 +5,21 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'pro-serve',
     player: 'Pro',
     shot: 'serve',
-    stats: { power: 40, spin: 80, control: 55, shape: 50 },
+    stats: { power: 100, spin: 80, control: 100 , shape: 50 },
     price: 0,
   },
   {
     id: 'pro-forehand',
     player: 'Pro',
     shot: 'forehand',
-    stats: { power: 60, spin: 50, control: 200, shape: 60 },
+    stats: { power: 100, spin: 100, control: 100, shape: 100 },
     price: 0,
   },
   {
     id: 'pro-backhand',
     player: 'Pro',
     shot: 'backhand',
-    stats: { power: 56, spin: 35, control: 52, shape: 45 },
+    stats: { power: 100, spin: 100, control: 100, shape: 100 },
     price: 0,
   },
   {
@@ -96,7 +96,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'pro-athleticism',
     player: 'Pro',
     shot: 'athleticism',
-    stats: { speed: 25, stamina: 40 },
+    stats: { speed: 150, stamina: 40 },
     price: 0,
   },
   {

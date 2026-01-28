@@ -21,6 +21,7 @@ interface CourtProps {
   serveDebug?: { x: number; y: number; radius: number; visible: boolean };
   aiSwinging: boolean;
   animationDuration: number;
+  ballTimingFunction: string;
   lastStroke: 'FH' | 'BH' | null;
   isSwinging: boolean;
   bounceMarkers: BounceMarker[];
@@ -38,6 +39,7 @@ const Court: React.FC<CourtProps> = ({
   serveDebug,
   aiSwinging,
   animationDuration, 
+  ballTimingFunction,
   lastStroke, 
   isSwinging,
   bounceMarkers 
@@ -52,7 +54,7 @@ const Court: React.FC<CourtProps> = ({
 
   const getAiRacketRotation = () => (aiSwinging ? 210 : 30);
 
-  const playableInsetX = 20;
+  const playableInsetX = 12;
   const playableInsetTop = 12;
   const playableInsetBottom = 12;
   const playableWidth = 100 - playableInsetX * 2;
@@ -70,6 +72,7 @@ const Court: React.FC<CourtProps> = ({
   const ballOnCourt = mapToCourt(ballPosition);
   const ballHitOnCourt = mapToCourt(ballHitPosition);
   const playerOnCourt = mapToCourt(playerPosition);
+  const ballScaleDenom = PHYSICS.COURT_BOUNDS.MAX_Y * 1.55;
   const dx = ballHitOnCourt.x - playerOnCourt.x;
   const dy = ballHitOnCourt.y - playerOnCourt.y;
   const activeHitRadius = dx < 0 ? playerHitRadiusBH : playerHitRadiusFH;
@@ -263,8 +266,8 @@ const Court: React.FC<CourtProps> = ({
             left: `${ballOnCourt.x}%`, 
             top: `${ballOnCourt.y + 2}%`,
             transitionDuration: `${animationDuration}ms`,
-            transitionTimingFunction: 'linear',
-            transform: `translate(-50%, -50%) scale(${0.85 + (ballPosition.y / 140)})` 
+            transitionTimingFunction: ballTimingFunction,
+            transform: `translate(-50%, -50%) scale(${0.85 + (ballPosition.y / ballScaleDenom)})` 
           }}
         />
 
@@ -275,8 +278,8 @@ const Court: React.FC<CourtProps> = ({
             left: `${ballOnCourt.x}%`, 
             top: `${ballOnCourt.y}%`,
             transitionDuration: `${animationDuration}ms`,
-            transitionTimingFunction: 'linear',
-            transform: `translate(-50%, -50%) scale(${0.7 + (ballPosition.y / 140)})`,
+            transitionTimingFunction: ballTimingFunction,
+            transform: `translate(-50%, -50%) scale(${0.7 + (ballPosition.y / ballScaleDenom)})`,
           }}
         >
           <div className="w-full h-full border border-black/10 rounded-full" />
