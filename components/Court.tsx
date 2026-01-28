@@ -202,7 +202,8 @@ const Court: React.FC<CourtProps> = ({
         >
            <div className="relative flex items-center justify-center w-32 h-32">
              <div 
-               className={`absolute w-28 h-28 rounded-full border-2 transition-all duration-300 ${isInReach ? 'border-emerald-400 scale-110 bg-emerald-400/10' : 'border-white/10'}`} 
+               className={`absolute rounded-full border-2 transition-all duration-300 ${isInReach ? 'border-emerald-400 scale-110 bg-emerald-400/10' : 'border-white/10'}`}
+               style={{ width: `${hitRadiusX * 2}%`, height: `${hitRadiusX * 2}%` }}
              />
              
              <div 
