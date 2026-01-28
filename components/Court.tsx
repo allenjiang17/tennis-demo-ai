@@ -221,19 +221,19 @@ const Court: React.FC<CourtProps> = ({
             top: `${ballOnCourt.y + 2}%`,
             transitionDuration: `${animationDuration}ms`,
             transitionTimingFunction: 'linear',
-            transform: `translate(-50%, -50%) scale(${1 + (ballPosition.y / 100)})` 
+            transform: `translate(-50%, -50%) scale(${0.85 + (ballPosition.y / 140)})` 
           }}
         />
 
         {/* The Ball */}
         <div 
-          className={`absolute w-6 h-6 rounded-full shadow-2xl z-30 transition-all ${isInReach ? 'bg-white shadow-[0_0_20px_white]' : 'bg-yellow-300 shadow-[0_0_15px_rgba(253,224,71,0.6)]'}`}
+          className={`absolute w-5 h-5 rounded-full shadow-2xl z-30 transition-all ${isInReach ? 'bg-white shadow-[0_0_20px_white]' : 'bg-yellow-300 shadow-[0_0_15px_rgba(253,224,71,0.6)]'}`}
           style={{ 
             left: `${ballOnCourt.x}%`, 
             top: `${ballOnCourt.y}%`,
             transitionDuration: `${animationDuration}ms`,
             transitionTimingFunction: 'linear',
-            transform: `translate(-50%, -50%) scale(${0.8 + (ballPosition.y / 100)})`,
+            transform: `translate(-50%, -50%) scale(${0.7 + (ballPosition.y / 140)})`,
           }}
         >
           <div className="w-full h-full border border-black/10 rounded-full" />

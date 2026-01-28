@@ -6,7 +6,11 @@ import Court from './components/Court';
 
 const AI_SPEED = 0.4; // Approximately half of player speed (0.8)
 const AI_REACH_RADIUS = 12;
-const AI_COURT_BOUNDS = { MIN_Y: 5, MAX_Y: 45 };
+const AI_COURT_BOUNDS = { MIN_Y: 0, MAX_Y: 45 };
+const SERVE_CONFIG = {
+  flat: { duration: 850, faultChance: 0.28, bounceYTop: 35, bounceYBottom: 65 },
+  kick: { duration: 1150, faultChance: 0.12, bounceYTop: 40, bounceYBottom: 60 },
+};
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -31,6 +35,12 @@ const App: React.FC = () => {
   const [rallyCount, setRallyCount] = useState(0);
   const [currentAnimDuration, setCurrentAnimDuration] = useState(0);
   const [bounceMarkers, setBounceMarkers] = useState<any[]>([]);
+  const [server, setServer] = useState<'player' | 'opponent'>('player');
+  const [serveSide, setServeSide] = useState<'deuce' | 'ad'>('deuce');
+  const [servePointIndex, setServePointIndex] = useState(0);
+  const [serveNumber, setServeNumber] = useState(1);
+  const [isServePending, setIsServePending] = useState(true);
+  const [serveTarget, setServeTarget] = useState<'wide' | 'middle'>('wide');
   
   // Meter states
   const [meterValue, setMeterValue] = useState(0); // 0 to 100
@@ -51,6 +61,8 @@ const App: React.FC = () => {
   const aiTargetXRef = useRef<number>(50);
   const aiTargetYRef = useRef<number>(4);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const serveInProgressRef = useRef(false);
+  const initialServerRef = useRef<'player' | 'opponent'>('player');
 
   useEffect(() => {
     currentPlayerPosRef.current = playerPos;
@@ -83,8 +95,8 @@ const App: React.FC = () => {
           if (keysPressed.current.has('ArrowUp')) newY -= PHYSICS.PLAYER_SPEED;
           if (keysPressed.current.has('ArrowDown')) newY += PHYSICS.PLAYER_SPEED;
           return {
-            x: Math.max(PHYSICS.COURT_BOUNDS.MIN_X, Math.min(PHYSICS.COURT_BOUNDS.MAX_X, newX)),
-            y: Math.max(PHYSICS.COURT_BOUNDS.MIN_Y, Math.min(PHYSICS.COURT_BOUNDS.MAX_Y, newY))
+            x: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_X, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_X, newX)),
+            y: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_Y, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_Y, newY))
           };
         });
 
@@ -184,9 +196,31 @@ const App: React.FC = () => {
     return end.x + dx * t;
   }, []);
 
+  const getServerForPoint = useCallback((pointIndex: number) => {
+    if (pointIndex === 0) return initialServerRef.current;
+    const block = Math.floor((pointIndex - 1) / 2);
+    if (block % 2 === 0) {
+      return initialServerRef.current === 'player' ? 'opponent' : 'player';
+    }
+    return initialServerRef.current;
+  }, []);
+
+  const getServeSideForPoint = useCallback((pointIndex: number) => (
+    pointIndex % 2 === 0 ? 'deuce' : 'ad'
+  ), []);
+
   const resetPoint = useCallback((winner: 'player' | 'opponent') => {
     isBallLiveRef.current = false;
     setRallyCount(0);
+    setServePointIndex(prev => {
+      const nextIndex = prev + 1;
+      setServer(getServerForPoint(nextIndex));
+      setServeSide(getServeSideForPoint(nextIndex));
+      setServeNumber(1);
+      setIsServePending(true);
+      serveInProgressRef.current = false;
+      return nextIndex;
+    });
     setGameState(prev => ({
       ...prev,
       player: { ...prev.player, score: winner === 'player' ? prev.player.score + 1 : prev.player.score },
@@ -209,9 +243,12 @@ const App: React.FC = () => {
         if (prev.player.score >= 5 || prev.opponent.score >= 5) return { ...prev, status: GameStatus.GAME_OVER };
         return { ...prev, status: GameStatus.PLAYING };
       });
-      if (gameState.player.score < 5 && gameState.opponent.score < 5) startAiShot();
+      if (gameState.player.score < 5 && gameState.opponent.score < 5) {
+        setIsServePending(true);
+        serveInProgressRef.current = false;
+      }
     }, 1000); 
-  }, [gameState.player.score, gameState.opponent.score, triggerFeedback]);
+  }, [gameState.player.score, gameState.opponent.score, getServerForPoint, getServeSideForPoint, triggerFeedback]);
 
   const startAiShot = useCallback((startOverride?: { x: number; y: number }) => {
     setIsAiSwinging(true);
@@ -267,11 +304,202 @@ const App: React.FC = () => {
     }, 50);
   }, [rallyCount, resetPoint, playHitSound, addBounceMarker, triggerFeedback, aiPos.x]);
 
+  const executePlayerShot = useCallback((params: {
+    startX: number;
+    startY: number;
+    targetX: number;
+    hitSpeed: number;
+    isDropShot: boolean;
+    bounceYOverride?: number;
+  }) => {
+    const { startX, startY, targetX, hitSpeed, isDropShot, bounceYOverride } = params;
+    const aiBounceY = bounceYOverride ?? (isDropShot ? 40 : 18);
+    const dropStopY = Math.max(6, aiBounceY - 6);
+    const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 2, aiBounceY - 10);
+    const dropPostBounceMultiplier = isDropShot ? 2.0 : 1;
+
+    // AI starts moving towards where the ball will land
+    aiTargetXRef.current = targetX;
+    aiTargetYRef.current = isDropShot ? dropStopY : Math.max(AI_COURT_BOUNDS.MIN_Y, contactY - 4);
+
+    shotStartTimeRef.current = performance.now();
+    shotDurationRef.current = hitSpeed;
+    shotStartPosRef.current = { x: startX, y: startY };
+    shotEndPosRef.current = { x: targetX, y: aiBounceY };
+
+    setCurrentAnimDuration(0);
+    setBallPos({ x: startX, y: startY });
+
+    setTimeout(() => {
+      setCurrentAnimDuration(hitSpeed);
+      setBallPos({ x: targetX, y: aiBounceY });
+    }, 20);
+
+    setTimeout(() => {
+      addBounceMarker(targetX, aiBounceY);
+      const dropStopX = extendShotToY({ x: startX, y: startY }, { x: targetX, y: aiBounceY }, dropStopY);
+      const contactX = extendShotToY({ x: startX, y: startY }, { x: targetX, y: aiBounceY }, contactY);
+      const aiCheckX = isDropShot ? dropStopX : contactX;
+      const aiCheckY = isDropShot ? dropStopY : contactY;
+      const aiNow = currentAiPosRef.current;
+      const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
+      const canReach = aiDistFromBall < AI_REACH_RADIUS;
+      const missFalloff = 40;
+      const baseMiss = 0.1;
+      const missScale = 0.8;
+      const distanceFactor = Math.max(0, aiDistFromBall - AI_REACH_RADIUS) / missFalloff;
+      const aiMissChance = canReach ? 0.02 : Math.min(0.9, baseMiss + distanceFactor * missScale);
+
+      if (!canReach && isDropShot) {
+        triggerFeedback("WINNER! 🏆", 1000);
+        const segmentY = Math.abs(aiBounceY - dropStopY);
+        const fullY = Math.abs(aiBounceY - startY);
+        const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
+        shotStartTimeRef.current = performance.now();
+        shotDurationRef.current = stopDuration;
+        shotStartPosRef.current = { x: targetX, y: aiBounceY };
+        shotEndPosRef.current = { x: dropStopX, y: dropStopY };
+        setCurrentAnimDuration(stopDuration);
+        setBallPos({ x: dropStopX, y: dropStopY });
+
+        if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+        ballTimeoutRef.current = setTimeout(() => {
+          resetPoint('player');
+        }, stopDuration);
+        return;
+      }
+
+      if (!canReach) {
+        triggerFeedback("WINNER! 🏆", 1000);
+        const outY = -12;
+        const outX = extendShotToY({ x: startX, y: startY }, { x: targetX, y: aiBounceY }, outY);
+        shotStartTimeRef.current = performance.now();
+        const postBounceDuration = hitSpeed * dropPostBounceMultiplier;
+        shotDurationRef.current = postBounceDuration;
+        shotStartPosRef.current = { x: targetX, y: aiBounceY };
+        shotEndPosRef.current = { x: outX, y: outY };
+        setCurrentAnimDuration(postBounceDuration);
+        setBallPos({ x: outX, y: outY });
+
+        if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+        ballTimeoutRef.current = setTimeout(() => {
+          resetPoint('player');
+        }, postBounceDuration);
+        return;
+      }
+
+      if (Math.random() < aiMissChance) {
+        triggerFeedback("WINNER! 🏆", 1000);
+        if (isDropShot) {
+          const segmentY = Math.abs(aiBounceY - dropStopY);
+          const fullY = Math.abs(aiBounceY - startY);
+          const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
+          shotStartTimeRef.current = performance.now();
+          shotDurationRef.current = stopDuration;
+          shotStartPosRef.current = { x: targetX, y: aiBounceY };
+          shotEndPosRef.current = { x: dropStopX, y: dropStopY };
+          setCurrentAnimDuration(stopDuration);
+          setBallPos({ x: dropStopX, y: dropStopY });
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            resetPoint('player');
+          }, stopDuration);
+        } else {
+          const outY = -12;
+          const outX = extendShotToY({ x: startX, y: startY }, { x: targetX, y: aiBounceY }, outY);
+          shotStartTimeRef.current = performance.now();
+          const postBounceDuration = hitSpeed * dropPostBounceMultiplier;
+          shotDurationRef.current = postBounceDuration;
+          shotStartPosRef.current = { x: targetX, y: aiBounceY };
+          shotEndPosRef.current = { x: outX, y: outY };
+          setCurrentAnimDuration(postBounceDuration);
+          setBallPos({ x: outX, y: outY });
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            resetPoint('player');
+          }, postBounceDuration);
+        }
+      } else {
+        if (isDropShot) {
+          const segmentY = Math.abs(aiBounceY - dropStopY);
+          const fullY = Math.abs(aiBounceY - startY);
+          const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
+
+          shotStartTimeRef.current = performance.now();
+          shotDurationRef.current = stopDuration;
+          shotStartPosRef.current = { x: targetX, y: aiBounceY };
+          shotEndPosRef.current = { x: dropStopX, y: dropStopY };
+          setCurrentAnimDuration(stopDuration);
+          setBallPos({ x: dropStopX, y: dropStopY });
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            startAiShot({ x: dropStopX, y: dropStopY });
+          }, stopDuration);
+        } else {
+          const segmentY = Math.abs(aiBounceY - contactY);
+          const fullY = Math.abs(aiBounceY - startY);
+          const continueDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.3)) * dropPostBounceMultiplier;
+
+          shotStartTimeRef.current = performance.now();
+          shotDurationRef.current = continueDuration;
+          shotStartPosRef.current = { x: targetX, y: aiBounceY };
+          shotEndPosRef.current = { x: contactX, y: contactY };
+          setCurrentAnimDuration(continueDuration);
+          setBallPos({ x: contactX, y: contactY });
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            startAiShot({ x: contactX, y: contactY });
+          }, continueDuration);
+        }
+      }
+    }, hitSpeed);
+  }, [addBounceMarker, extendShotToY, resetPoint, startAiShot, triggerFeedback]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
     
     if ((e.code === 'Space' || e.code === 'KeyX') && gameState.status === GameStatus.PLAYING) {
       e.preventDefault();
+      if (isServePending && server === 'player') {
+        const serveType = e.code === 'KeyX' ? 'kick' : 'flat';
+        const config = SERVE_CONFIG[serveType];
+        if (Math.random() < config.faultChance) {
+          triggerFeedback("FAULT!", 700);
+          if (serveNumber === 1) {
+            setServeNumber(2);
+          } else {
+            resetPoint('opponent');
+          }
+          return;
+        }
+
+        setIsServePending(false);
+        setServeNumber(1);
+        serveInProgressRef.current = false;
+
+        const p = currentPlayerPosRef.current;
+        const serveTargetX = serveSide === 'deuce'
+          ? (serveTarget === 'wide' ? 15 + Math.random() * 15 : 38 + Math.random() * 10)
+          : (serveTarget === 'wide' ? 70 + Math.random() * 15 : 52 + Math.random() * 10);
+        const targetX = Math.max(15, Math.min(85, serveTargetX));
+        setLastStroke(targetX < p.x ? 'BH' : 'FH');
+        setIsSwinging(true);
+        setTimeout(() => setIsSwinging(false), 250);
+        playHitSound(true);
+        executePlayerShot({
+          startX: p.x,
+          startY: p.y,
+          targetX,
+          hitSpeed: config.duration,
+          isDropShot: false,
+          bounceYOverride: config.bounceYTop,
+        });
+        return;
+      }
       const isDropShot = e.code === 'KeyX';
       
       const bX = ballHitPosRef.current.x;
@@ -330,150 +558,17 @@ const App: React.FC = () => {
       
       targetX = Math.max(4, Math.min(96, targetX));
       
-      const aiBounceY = isDropShot ? 40 : 18;
-      const dropStopY = Math.max(6, aiBounceY - 6);
-      const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 2, aiBounceY - 10);
-
-      // AI starts moving towards where the ball will land
-      aiTargetXRef.current = targetX;
-      aiTargetYRef.current = isDropShot ? dropStopY : Math.max(AI_COURT_BOUNDS.MIN_Y, contactY - 4);
-
       triggerAiCommentary(ShotQuality.PERFECT);
       const hitSpeed = isDropShot ? 1250 : (stroke === 'FH' ? 900 : 1050);
-      const dropPostBounceMultiplier = isDropShot ? 2.0 : 1;
-      
-      shotStartTimeRef.current = performance.now();
-      shotDurationRef.current = hitSpeed;
-      shotStartPosRef.current = { x: bX, y: bY };
-      shotEndPosRef.current = { x: targetX, y: aiBounceY };
-
-      setCurrentAnimDuration(0);
-      setBallPos({ x: bX, y: bY });
-      
-      setTimeout(() => {
-        setCurrentAnimDuration(hitSpeed);
-        setBallPos({ x: targetX, y: aiBounceY });
-      }, 20);
-
-      setTimeout(() => {
-        addBounceMarker(targetX, aiBounceY); 
-        const dropStopX = extendShotToY({ x: bX, y: bY }, { x: targetX, y: aiBounceY }, dropStopY);
-        // Logic check: AI only hits if it is close to targetX
-        const contactX = extendShotToY({ x: bX, y: bY }, { x: targetX, y: aiBounceY }, contactY);
-        const aiCheckX = isDropShot ? dropStopX : contactX;
-        const aiCheckY = isDropShot ? dropStopY : contactY;
-        const aiNow = currentAiPosRef.current;
-        const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
-        const canReach = aiDistFromBall < AI_REACH_RADIUS;
-        const missFalloff = 40;
-        const baseMiss = 0.1;
-        const missScale = 0.8;
-        const distanceFactor = Math.max(0, aiDistFromBall - AI_REACH_RADIUS) / missFalloff;
-        const aiMissChance = canReach ? 0.02 : Math.min(0.9, baseMiss + distanceFactor * missScale);
-
-        if (!canReach && isDropShot) {
-          triggerFeedback("WINNER! 🏆", 1000);
-          const segmentY = Math.abs(aiBounceY - dropStopY);
-          const fullY = Math.abs(aiBounceY - bY);
-          const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
-          shotStartTimeRef.current = performance.now();
-          shotDurationRef.current = stopDuration;
-          shotStartPosRef.current = { x: targetX, y: aiBounceY };
-          shotEndPosRef.current = { x: dropStopX, y: dropStopY };
-          setCurrentAnimDuration(stopDuration);
-          setBallPos({ x: dropStopX, y: dropStopY });
-
-          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
-            resetPoint('player');
-          }, stopDuration);
-        } else if (!canReach) {
-          triggerFeedback("WINNER! 🏆", 1000);
-          const outY = -12;
-          const outX = extendShotToY({ x: bX, y: bY }, { x: targetX, y: aiBounceY }, outY);
-          shotStartTimeRef.current = performance.now();
-          const postBounceDuration = hitSpeed * dropPostBounceMultiplier;
-          shotDurationRef.current = postBounceDuration;
-          shotStartPosRef.current = { x: targetX, y: aiBounceY };
-          shotEndPosRef.current = { x: outX, y: outY };
-          setCurrentAnimDuration(postBounceDuration);
-          setBallPos({ x: outX, y: outY });
-
-          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
-            resetPoint('player');
-          }, postBounceDuration);
-        } else if (Math.random() < aiMissChance) {
-          triggerFeedback("WINNER! 🏆", 1000);
-          if (isDropShot) {
-            const segmentY = Math.abs(aiBounceY - dropStopY);
-            const fullY = Math.abs(aiBounceY - bY);
-            const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
-            shotStartTimeRef.current = performance.now();
-            shotDurationRef.current = stopDuration;
-            shotStartPosRef.current = { x: targetX, y: aiBounceY };
-            shotEndPosRef.current = { x: dropStopX, y: dropStopY };
-            setCurrentAnimDuration(stopDuration);
-            setBallPos({ x: dropStopX, y: dropStopY });
-
-            if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-            ballTimeoutRef.current = setTimeout(() => {
-              resetPoint('player');
-            }, stopDuration);
-          } else {
-            const outY = -12;
-            const outX = extendShotToY({ x: bX, y: bY }, { x: targetX, y: aiBounceY }, outY);
-            shotStartTimeRef.current = performance.now();
-            const postBounceDuration = hitSpeed * dropPostBounceMultiplier;
-            shotDurationRef.current = postBounceDuration;
-            shotStartPosRef.current = { x: targetX, y: aiBounceY };
-            shotEndPosRef.current = { x: outX, y: outY };
-            setCurrentAnimDuration(postBounceDuration);
-            setBallPos({ x: outX, y: outY });
-
-            if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-            ballTimeoutRef.current = setTimeout(() => {
-              resetPoint('player');
-            }, postBounceDuration);
-          }
-        } else {
-          if (isDropShot) {
-            const segmentY = Math.abs(aiBounceY - dropStopY);
-            const fullY = Math.abs(aiBounceY - bY);
-            const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
-
-            shotStartTimeRef.current = performance.now();
-            shotDurationRef.current = stopDuration;
-            shotStartPosRef.current = { x: targetX, y: aiBounceY };
-            shotEndPosRef.current = { x: dropStopX, y: dropStopY };
-            setCurrentAnimDuration(stopDuration);
-            setBallPos({ x: dropStopX, y: dropStopY });
-
-            if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-            ballTimeoutRef.current = setTimeout(() => {
-              startAiShot({ x: dropStopX, y: dropStopY });
-            }, stopDuration);
-          } else {
-            const segmentY = Math.abs(aiBounceY - contactY);
-            const fullY = Math.abs(aiBounceY - bY);
-            const continueDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.3)) * dropPostBounceMultiplier;
-
-            shotStartTimeRef.current = performance.now();
-            shotDurationRef.current = continueDuration;
-            shotStartPosRef.current = { x: targetX, y: aiBounceY };
-            shotEndPosRef.current = { x: contactX, y: contactY };
-            setCurrentAnimDuration(continueDuration);
-            setBallPos({ x: contactX, y: contactY });
-
-            if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-            ballTimeoutRef.current = setTimeout(() => {
-              startAiShot({ x: contactX, y: contactY });
-            }, continueDuration);
-          }
-        }
-      }, hitSpeed);
+      executePlayerShot({
+        startX: bX,
+        startY: bY,
+        targetX,
+        hitSpeed,
+        isDropShot,
+      });
     }
-  }, [isBallLiveRef, gameState.status, rallyCount, resetPoint, triggerAiCommentary, startAiShot, playHitSound, addBounceMarker, triggerFeedback, aiPos.x]);
+  }, [executePlayerShot, gameState.status, isBallLiveRef, playHitSound, resetPoint, server, serveNumber, serveSide, serveTarget, triggerAiCommentary, triggerFeedback, isServePending]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);
@@ -488,6 +583,116 @@ const App: React.FC = () => {
     };
   }, [handleKeyDown, handleKeyUp]);
 
+  useEffect(() => {
+    if (gameState.status !== GameStatus.PLAYING || !isServePending) return;
+    const serverPos = server === 'player' ? playerPos : aiPos;
+    setBallPos({ x: serverPos.x, y: serverPos.y });
+    shotStartPosRef.current = { x: serverPos.x, y: serverPos.y };
+    shotEndPosRef.current = { x: serverPos.x, y: serverPos.y };
+    shotStartTimeRef.current = performance.now();
+    shotDurationRef.current = 0;
+    setBallHitPos({ x: serverPos.x, y: serverPos.y });
+    ballHitPosRef.current = { x: serverPos.x, y: serverPos.y };
+  }, [aiPos, gameState.status, isServePending, playerPos, server]);
+
+  useEffect(() => {
+    if (gameState.status !== GameStatus.PLAYING || !isServePending) return;
+    const isDeuce = serveSide === 'deuce';
+    if (server === 'player') {
+      const serverX = isDeuce ? 70 : 30;
+      const receiverX = isDeuce ? 30 : 70;
+      setPlayerPos(prev => ({ ...prev, x: serverX, y: 106 }));
+      setAiPos(prev => ({ ...prev, x: receiverX, y: 0 }));
+      currentAiPosRef.current = { ...currentAiPosRef.current, x: receiverX, y: 0 };
+      aiTargetXRef.current = receiverX;
+      aiTargetYRef.current = 0;
+    } else {
+      const serverX = isDeuce ? 70 : 30;
+      const receiverX = isDeuce ? 30 : 70;
+      setAiPos(prev => ({ ...prev, x: serverX, y: 0 }));
+      currentAiPosRef.current = { ...currentAiPosRef.current, x: serverX, y: 0 };
+      setPlayerPos(prev => ({ ...prev, x: receiverX, y: 106 }));
+      aiTargetXRef.current = serverX;
+      aiTargetYRef.current = 0;
+    }
+  }, [gameState.status, isServePending, serveSide, server]);
+
+  useEffect(() => {
+    if (gameState.status !== GameStatus.PLAYING || !isServePending || server !== 'opponent') return;
+    if (serveInProgressRef.current) return;
+    serveInProgressRef.current = true;
+    const serveType = Math.random() < 0.5 ? 'flat' : 'kick';
+    const timeoutId = setTimeout(() => {
+      const config = SERVE_CONFIG[serveType];
+      if (Math.random() < config.faultChance) {
+        triggerFeedback("FAULT!", 700);
+        if (serveNumber === 1) {
+          setServeNumber(2);
+          serveInProgressRef.current = false;
+        } else {
+          resetPoint('player');
+        }
+        return;
+      }
+
+      setIsServePending(false);
+      setServeNumber(1);
+      serveInProgressRef.current = false;
+
+      const start = currentAiPosRef.current;
+      const serveTargetX = serveSide === 'deuce'
+        ? 15 + Math.random() * 25
+        : 60 + Math.random() * 25;
+      const endX = Math.max(15, Math.min(85, serveTargetX));
+      const endY = 72;
+      const outY = 112;
+      const duration = config.duration;
+
+      setCurrentAnimDuration(0);
+      setBallPos({ x: start.x, y: start.y });
+
+      setTimeout(() => {
+        setIsAiSwinging(true);
+        setTimeout(() => setIsAiSwinging(false), 250);
+        playHitSound(false);
+        isBallLiveRef.current = true;
+        shotStartTimeRef.current = performance.now();
+        shotDurationRef.current = duration;
+        shotStartPosRef.current = { x: start.x, y: start.y };
+        const serveBounceY = config.bounceYBottom;
+        shotEndPosRef.current = { x: endX, y: serveBounceY };
+        setCurrentAnimDuration(duration);
+        setBallPos({ x: endX, y: serveBounceY });
+
+        aiTargetXRef.current = 50;
+        aiTargetYRef.current = 4;
+
+        if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+        ballTimeoutRef.current = setTimeout(() => {
+          if (!isBallLiveRef.current) return;
+          addBounceMarker(endX, serveBounceY);
+          shotStartTimeRef.current = performance.now();
+          shotDurationRef.current = duration;
+          const travelX = endX - start.x;
+          const travelY = serveBounceY - start.y;
+          const continuationT = travelY !== 0 ? (outY - serveBounceY) / travelY : 0;
+          const outX = endX + travelX * continuationT;
+          shotStartPosRef.current = { x: endX, y: serveBounceY };
+          shotEndPosRef.current = { x: outX, y: outY };
+          setCurrentAnimDuration(duration);
+          setBallPos({ x: outX, y: outY });
+
+          ballTimeoutRef.current = setTimeout(() => {
+            if (!isBallLiveRef.current) return;
+            triggerFeedback("OUT! ❌", 600);
+            resetPoint('opponent');
+          }, duration);
+        }, duration);
+      }, 50);
+    }, 600);
+    return () => clearTimeout(timeoutId);
+  }, [addBounceMarker, gameState.status, isServePending, playHitSound, resetPoint, serveNumber, server, serveSide, triggerFeedback]);
+
   const startGame = () => {
     setGameState(prev => ({
       ...prev,
@@ -496,11 +701,17 @@ const App: React.FC = () => {
       status: GameStatus.PLAYING,
     }));
     setRallyCount(0);
+    initialServerRef.current = 'player';
+    setServePointIndex(0);
+    setServer(getServerForPoint(0));
+    setServeSide(getServeSideForPoint(0));
+    setServeNumber(1);
+    setIsServePending(true);
+    serveInProgressRef.current = false;
     aiTargetXRef.current = 50;
     const resetAiPos = { x: 50, y: 4 };
     setAiPos(resetAiPos);
     currentAiPosRef.current = resetAiPos;
-    startAiShot();
   };
 
   return (
@@ -524,6 +735,37 @@ const App: React.FC = () => {
           <p className="text-slate-400 text-[10px] font-orbitron uppercase tracking-widest text-left px-6 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm italic">
             {commentary}
           </p>
+        </div>
+      </div>
+
+      <div className="absolute bottom-6 right-6 z-30 pointer-events-auto">
+        <div className="bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl px-5 py-4">
+          <div className="text-[10px] font-orbitron uppercase tracking-widest text-white/70">
+            Serve: {server === 'player' ? 'YOU' : 'AI'} • {serveNumber === 1 ? '1st' : '2nd'} • {serveSide.toUpperCase()}
+          </div>
+          {isServePending && server === 'player' && (
+            <>
+              <div className="mt-2 text-[10px] font-orbitron uppercase tracking-widest text-emerald-300/90">
+                Space: Flat • X: Kick
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setServeTarget('wide')}
+                  className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${serveTarget === 'wide' ? 'bg-white text-slate-900 border-white' : 'bg-white/5 text-white/70 border-white/20 hover:bg-white/10'}`}
+                >
+                  Wide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServeTarget('middle')}
+                  className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${serveTarget === 'middle' ? 'bg-white text-slate-900 border-white' : 'bg-white/5 text-white/70 border-white/20 hover:bg-white/10'}`}
+                >
+                  Middle
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

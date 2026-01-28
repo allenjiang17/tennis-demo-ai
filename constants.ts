@@ -8,6 +8,10 @@ export const PHYSICS = {
   COURT_BOUNDS: {
     MIN_X: 5, MAX_X: 95,
     MIN_Y: 55, MAX_Y: 95  // Player constrained to bottom half
+  },
+  PLAYER_BOUNDS: {
+    MIN_X: -10, MAX_X: 110,
+    MIN_Y: 40, MAX_Y: 110 // Allow run-off space beyond lines
   }
 };
 
