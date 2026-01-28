@@ -5,7 +5,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'pro-serve',
     player: 'Pro',
     shot: 'serve',
-    stats: { power: 62, spin: 50, control: 55, shape: 50 },
+    stats: { power: 70, spin: 50, control: 55, shape: 50 },
     price: 0,
   },
   {
@@ -58,17 +58,17 @@ export const SHOP_ITEMS: ShopItem[] = [
     price: 300,
   },
   {
-    id: 'serena-serve',
-    player: 'Serena',
+    id: 'isner-kick-serve',
+    player: 'Isner',
     shot: 'serve',
-    stats: { power: 88, spin: 50, control: 62, shape: 50 },
+    stats: { power: 88, spin: 130, control: 80, shape: 50 },
     price: 320,
   },
   {
     id: 'sampras-serve',
     player: 'Sampras',
     shot: 'serve',
-    stats: { power: 92, spin: 45, control: 58, shape: 50 },
+    stats: { power: 130, spin: 20, control: 58, shape: 50 },
     price: 340,
   },
   {

@@ -11,16 +11,16 @@ const AI_STATS: PlayerStats = {
   backhand: { power: 70, spin: 30, control: 50, shape: 55 },
 };
 
-const AI_SPEED = 0.5; // Approximately half of player speed (0.8)
+const AI_SPEED = 0.2; // Approximately half of player speed (0.8)
 const AI_COURT_BOUNDS = { MIN_Y: 0, MAX_Y: 45 };
 const SERVE_BASE_DURATION = 900;
-const SERVE_TARGET_Y = { top: 35, bottom: 65 };
+const SERVE_TARGET_Y = { top: 30, bottom: 70 };
 const SERVE_NET_Y = 50;
-const SERVE_JITTER_MAX = 10;
+const SERVE_JITTER_MAX = 30;
 const SERVE_BOX_Y = { topMin: 25, topMax: 50, bottomMin: 50, bottomMax: 75 };
 const SERVE_TARGET_X = {
-  deuce: { wide: 18, middle: 46 },
-  ad: { wide: 82, middle: 54 },
+  deuce: { wide: 10, middle: 45 },
+  ad: { wide: 85, middle: 55 },
 };
 
 type GameProps = {
@@ -538,7 +538,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       const aiMissChance = canReach ? 0.02 : Math.min(0.9, baseMiss + distanceFactor * missScale);
 
       if (!canReach && isDropShot) {
-        triggerFeedback("WINNER! 🏆", 1000);
+        triggerFeedback("DROPSHOT WINNER! 🏆", 600);
         const segmentY = Math.abs(aiBounceY - dropStopY);
         const fullY = Math.abs(aiBounceY - startY);
         const stopDuration = Math.max(120, hitSpeed * (fullY > 0 ? segmentY / fullY : 0.2)) * dropPostBounceMultiplier;
@@ -557,7 +557,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       }
 
       if (!canReach) {
-        triggerFeedback("WINNER! 🏆", 1000);
+        triggerFeedback("WINNER! 🏆", 600);
         const outY = -12;
         const outX = extendShotToY({ x: startX, y: startY }, { x: bounceX, y: aiBounceY }, outY);
         shotStartTimeRef.current = performance.now();
@@ -576,7 +576,7 @@ const Game: React.FC<GameProps> = ({ playerStats, onExit }) => {
       }
 
       if (Math.random() < aiMissChance) {
-        triggerFeedback("WINNER! 🏆", 1000);
+        triggerFeedback("MISSED!", 600);
         if (isDropShot) {
           const segmentY = Math.abs(aiBounceY - dropStopY);
           const fullY = Math.abs(aiBounceY - startY);
