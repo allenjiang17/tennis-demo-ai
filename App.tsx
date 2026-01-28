@@ -741,7 +741,7 @@ const App: React.FC = () => {
       <div className="absolute bottom-6 right-6 z-30 pointer-events-auto">
         <div className="bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl px-5 py-4">
           <div className="text-[10px] font-orbitron uppercase tracking-widest text-white/70">
-            Serve: {server === 'player' ? 'YOU' : 'AI'} • {serveNumber === 1 ? '1st' : '2nd'} • {serveSide.toUpperCase()}
+            {serveNumber === 1 ? '1st serve' : '2nd serve'}
           </div>
           {isServePending && server === 'player' && (
             <>
