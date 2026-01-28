@@ -97,8 +97,8 @@ const Court: React.FC<CourtProps> = ({
           className="absolute z-10 shadow-lg"
           style={{ top: `${playableInsetTop}%`, bottom: `${playableInsetBottom}%`, left: `${playableInsetX}%`, right: `${playableInsetX}%` }}
         >
-          <div className="absolute top-1/2 left-0 w-full h-1 bg-white/60 backdrop-blur-sm border-t border-b border-white flex items-center justify-center">
-             <div className="w-full h-[40px] border-l border-r border-white/30 bg-[radial-gradient(circle,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:10px_10px] -translate-y-1/2" />
+          <div className="absolute top-1/2 left-0 w-full h-1 bg-white/70 backdrop-blur-sm border-t border-b border-white flex items-center justify-center">
+             <div className="w-full h-[44px] border-l border-r border-white/40 bg-[radial-gradient(circle,rgba(255,255,255,0.35)_1px,transparent_1px)] bg-[size:6px_6px] -translate-y-1/2" />
           </div>
         </div>
         
