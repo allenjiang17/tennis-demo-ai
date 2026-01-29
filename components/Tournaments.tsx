@@ -2,11 +2,12 @@ import React from 'react';
 import { CourtSurface, PlayerProfile } from '../types';
 import { PORTRAITS } from '../data/portraits';
 
-type TournamentTier = 'amateur' | 'pro' | 'elite';
+type TournamentCategory = 'itf' | 'pro' | 'elite' | 'grand-slam';
 type TournamentDef = {
   id: string;
   name: string;
-  tier: TournamentTier;
+  tier: 'amateur' | 'pro' | 'elite';
+  category: TournamentCategory;
   description: string;
   prizes: number[];
   image?: string;
@@ -27,7 +28,8 @@ type TournamentMatch = {
 type TournamentState = {
   id: string;
   name: string;
-  tier: TournamentTier;
+  tier: 'amateur' | 'pro' | 'elite';
+  category: TournamentCategory;
   prizes: number[];
   surface: CourtSurface;
   status: 'active' | 'eliminated' | 'champion';
@@ -47,10 +49,11 @@ type TournamentsProps = {
   onBack: () => void;
 };
 
-const tierStyles: Record<TournamentTier, { bg: string; text: string; border: string }> = {
-  amateur: { bg: 'bg-slate-500/15', text: 'text-slate-200', border: 'border-slate-400/40' },
+const categoryStyles: Record<TournamentCategory, { bg: string; text: string; border: string }> = {
+  itf: { bg: 'bg-slate-500/15', text: 'text-slate-200', border: 'border-slate-400/40' },
   pro: { bg: 'bg-emerald-500/15', text: 'text-emerald-200', border: 'border-emerald-400/40' },
   elite: { bg: 'bg-sky-500/15', text: 'text-sky-200', border: 'border-sky-400/40' },
+  'grand-slam': { bg: 'bg-amber-500/15', text: 'text-amber-200', border: 'border-amber-300/50' },
 };
 
 const formatRound = (round: number) => {
@@ -59,11 +62,12 @@ const formatRound = (round: number) => {
   return 'Final';
 };
 
-const tierOrder: TournamentTier[] = ['amateur', 'pro', 'elite'];
-const tierMeta: Record<TournamentTier, { title: string; subtitle: string }> = {
-  amateur: { title: 'Amateur Circuit', subtitle: 'ITF Futures & rising prospects' },
+const categoryOrder: TournamentCategory[] = ['itf', 'pro', 'elite', 'grand-slam'];
+const categoryMeta: Record<TournamentCategory, { title: string; subtitle: string }> = {
+  itf: { title: 'ITF Circuit', subtitle: 'Open entry events for rising prospects' },
   pro: { title: 'Pro Series', subtitle: 'ATP 250–500 level events' },
-  elite: { title: 'Elite Majors', subtitle: 'Masters 1000 & Grand Slams' },
+  elite: { title: 'Elite Masters', subtitle: 'Masters 1000 level events' },
+  'grand-slam': { title: 'Grand Slams', subtitle: 'Top 8 entry only' },
 };
 
 const Tournaments: React.FC<TournamentsProps> = ({
@@ -135,18 +139,18 @@ const Tournaments: React.FC<TournamentsProps> = ({
 
       {!tournamentState ? (
         <div className="mt-10 space-y-10">
-          {tierOrder.map(tier => {
-            const tierTournaments = tournaments.filter(tournament => tournament.tier === tier);
-            const meta = tierMeta[tier];
+          {categoryOrder.map(category => {
+            const categoryTournaments = tournaments.filter(tournament => tournament.category === category);
+            const meta = categoryMeta[category];
             return (
-              <section key={tier} className="space-y-4">
+              <section key={category} className="space-y-4">
                 <div>
                   <div className="text-xl font-orbitron uppercase tracking-widest">{meta.title}</div>
                   <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">{meta.subtitle}</div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {tierTournaments.map(tournament => {
-                    const style = tierStyles[tournament.tier];
+                  {categoryTournaments.map(tournament => {
+                    const style = categoryStyles[tournament.category];
                     const eligible = isEligible(tournament);
                     return (
                       <div
@@ -176,12 +180,14 @@ const Tournaments: React.FC<TournamentsProps> = ({
                           ))}
                         </div>
                         <div className="mt-4 text-[9px] uppercase tracking-widest text-slate-400">
-                          Entry: Top {tournament.rankingGate.maxRank}
+                          {tournament.rankingGate.maxRank === Number.POSITIVE_INFINITY
+                            ? 'Entry: Open'
+                            : `Entry: Top ${tournament.rankingGate.maxRank}`}
                           {tournament.rankingGate.minPoints !== undefined
                             ? ` • ${tournament.rankingGate.minPoints}+ pts`
                             : ''}
                         </div>
-                        {!eligible && (
+                        {!eligible && tournament.rankingGate.maxRank !== Number.POSITIVE_INFINITY && (
                           <div className="mt-2 text-[9px] uppercase tracking-widest text-rose-300">
                             Rank too low to enter
                           </div>
@@ -213,7 +219,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
               <div>
                 <div className="text-sm font-orbitron uppercase tracking-widest">{tournamentState.name}</div>
                 <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
-                  Tier: {tournamentState.tier} • Status: {tournamentState.status}
+                  Category: {tournamentState.category} • Status: {tournamentState.status}
                 </div>
               </div>
               <div className="flex items-center gap-2">

@@ -52,6 +52,7 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
 };
 
 type DifficultyTier = 'amateur' | 'pro' | 'elite';
+type TournamentCategory = 'itf' | 'pro' | 'elite' | 'grand-slam';
 
 type RankingGate = {
   maxRank: number;
@@ -62,6 +63,7 @@ type TournamentDef = {
   id: string;
   name: string;
   tier: DifficultyTier;
+  category: TournamentCategory;
   description: string;
   prizes: number[];
   image?: string;
@@ -85,6 +87,7 @@ type TournamentState = {
   id: string;
   name: string;
   tier: DifficultyTier;
+  category: TournamentCategory;
   prizes: number[];
   surface: CourtSurface;
   rankingPoints: number[];
@@ -108,10 +111,11 @@ const RANKING_POINTS_BY_TIER: Record<DifficultyTier, number[]> = {
   pro: [80, 180, 360],
   elite: [250, 600, 1400],
 };
-const RANKING_GATES_BY_TIER: Record<DifficultyTier, RankingGate> = {
-  amateur: { maxRank: 40 },
-  pro: { maxRank: 12 },
-  elite: { maxRank: 8 },
+const RANKING_GATES_BY_CATEGORY: Record<TournamentCategory, RankingGate> = {
+  itf: { maxRank: Number.POSITIVE_INFINITY },
+  pro: { maxRank: 80 },
+  elite: { maxRank: 20 },
+  'grand-slam': { maxRank: 8 },
 };
 
 const TOURNAMENTS: TournamentDef[] = [
@@ -119,140 +123,153 @@ const TOURNAMENTS: TournamentDef[] = [
     id: 'itf-monastir',
     name: 'ITF Monastir 15K',
     tier: 'amateur',
+    category: 'itf',
     description: 'Hard-court grind in Tunisia.',
     surface: 'hardcourt',
     prizes: [100, 250, 600],
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
-    rankingGate: RANKING_GATES_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
     id: 'itf-sharm',
     name: 'ITF Sharm El Sheikh 15K',
     tier: 'amateur',
+    category: 'itf',
     description: 'Desert heat and fast courts.',
     surface: 'hardcourt',
     prizes: [120, 280, 650],
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
-    rankingGate: RANKING_GATES_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
     id: 'itf-antalya',
     name: 'ITF Antalya 15K',
     tier: 'amateur',
+    category: 'itf',
     description: 'Coastal wind and long rallies.',
     surface: 'hardcourt',
     prizes: [120, 300, 700],
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
-    rankingGate: RANKING_GATES_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
     id: 'itf-santa',
     name: 'ITF Santa Margherita 25K',
     tier: 'amateur',
+    category: 'itf',
     description: 'Clay court tests and tight margins.',
     surface: 'clay',
     prizes: [150, 350, 800],
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
-    rankingGate: RANKING_GATES_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
     id: 'doha-250',
     name: 'Qatar ExxonMobil Open',
     tier: 'pro',
+    category: 'pro',
     description: 'ATP 250 on fast hard courts.',
     image: '/tournaments/smalltournament.png',
     surface: 'hardcourt',
     prizes: [500, 1200, 3000],
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
-    rankingGate: RANKING_GATES_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
     id: 'acapulco-500',
     name: 'Abierto Mexicano Telcel',
     tier: 'pro',
+    category: 'pro',
     description: 'ATP 500 under the lights.',
     image: '/tournaments/smalltournament.png',
     surface: 'hardcourt',
     prizes: [650, 1500, 3600],
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
-    rankingGate: RANKING_GATES_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
     id: 'barcelona-500',
     name: 'Barcelona Open Banc Sabadell',
     tier: 'pro',
+    category: 'pro',
     description: 'Classic clay-court ATP 500.',
     image: '/tournaments/smalltournament.png',
     surface: 'clay',
     prizes: [700, 1600, 3800],
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
-    rankingGate: RANKING_GATES_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
     id: 'queens-500',
     name: 'Cinch Championships',
     tier: 'pro',
+    category: 'pro',
     description: 'Grass-court warmup in London.',
     image: '/tournaments/smalltournament.png',
     surface: 'grass',
     prizes: [650, 1500, 3600],
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
-    rankingGate: RANKING_GATES_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
     id: 'indian-wells-1000',
     name: 'BNP Paribas Open',
     tier: 'elite',
+    category: 'elite',
     description: 'Masters 1000 in the desert.',
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
     prizes: [1500, 4000, 10000],
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
-    rankingGate: RANKING_GATES_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   {
     id: 'miami-open',
     name: 'Miami Open',
     tier: 'elite',
+    category: 'elite',
     description: 'Sunshine Swing showdown.',
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
     prizes: [1500, 4200, 10500],
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
-    rankingGate: RANKING_GATES_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   {
     id: 'shanghai-masters',
     name: 'Shanghai Masters',
     tier: 'elite',
+    category: 'elite',
     description: 'Fast hard-court Masters 1000.',
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
     prizes: [1600, 4500, 11000],
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
-    rankingGate: RANKING_GATES_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   {
     id: 'french-open',
     name: 'French Open',
     tier: 'elite',
+    category: 'grand-slam',
     description: 'Clay-court Grand Slam in Paris.',
     image: '/tournaments/claycourt.png',
     surface: 'clay',
     prizes: [2000, 6000, 15000],
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
-    rankingGate: RANKING_GATES_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
   {
     id: 'wimbledon',
     name: 'Wimbledon',
     tier: 'elite',
+    category: 'grand-slam',
     description: 'The Championships on grass.',
     image: '/tournaments/wimbledon.png',
     surface: 'grass',
     prizes: [2000, 6000, 15000],
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
-    rankingGate: RANKING_GATES_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
 ];
 
@@ -358,10 +375,6 @@ const App: React.FC = () => {
     () => buildPlayerStats(SHOP_ITEMS, loadout),
     [loadout]
   );
-  const aiStats = useMemo(
-    () => buildPlayerStats(SHOP_ITEMS, buildTieredLoadout(selectedAi, difficulty)),
-    [buildTieredLoadout, difficulty, selectedAi]
-  );
 
   const rollTier = (): ShopItem['tier'] => {
     const roll = Math.random() * 100;
@@ -435,6 +448,25 @@ const App: React.FC = () => {
     return players.filter(player => isPlayerEligibleForTournament(tournament, player.id));
   };
 
+  const getEligibleAiPool = (tournament: TournamentDef) => {
+    const basePool = getEligiblePlayersForTournament(tournament);
+    if (tournament.category === 'itf') {
+      return basePool.filter(player => {
+        if (player.id === PLAYER_ID) return true;
+        const rank = rankingsById.get(player.id) ?? Number.POSITIVE_INFINITY;
+        return rank >= 60;
+      });
+    }
+    if (tournament.category === 'pro') {
+      return basePool.filter(player => {
+        if (player.id === PLAYER_ID) return true;
+        const rank = rankingsById.get(player.id) ?? Number.POSITIVE_INFINITY;
+        return rank >= 15;
+      });
+    }
+    return basePool;
+  };
+
   const collectRankingAwards = (state: TournamentState): RankingAward[] => {
     const awards: RankingAward[] = [];
     state.rounds.forEach(round => {
@@ -450,32 +482,44 @@ const App: React.FC = () => {
     return awards;
   };
 
+  const getPlayerStatsTotal = (playerId: string) => {
+    const loadout = playersById.get(playerId)?.loadout || DEFAULT_LOADOUT;
+    const stats = buildPlayerStats(SHOP_ITEMS, loadout);
+    const serveTotal = stats.serveFirst.power + stats.serveFirst.spin + stats.serveFirst.control + stats.serveFirst.shape
+      + stats.serveSecond.power + stats.serveSecond.spin + stats.serveSecond.control + stats.serveSecond.shape;
+    const groundTotal = stats.forehand.power + stats.forehand.spin + stats.forehand.control + stats.forehand.shape
+      + stats.backhand.power + stats.backhand.spin + stats.backhand.control + stats.backhand.shape;
+    const netTotal = stats.volley.control + stats.volley.accuracy;
+    const athleticTotal = stats.athleticism.speed + stats.athleticism.stamina;
+    return serveTotal + groundTotal + netTotal + athleticTotal;
+  };
+
+  const simulateAiMatch = (player1Id: string, player2Id: string) => {
+    const p1 = getPlayerStatsTotal(player1Id);
+    const p2 = getPlayerStatsTotal(player2Id);
+    const bias = p1 + p2 === 0 ? 0.5 : p1 / (p1 + p2);
+    return Math.random() < bias ? player1Id : player2Id;
+  };
+
   const createTournamentState = (tournament: TournamentDef) => {
-    const eligiblePlayers = getEligiblePlayersForTournament(tournament);
-    const sortedEligible = [...eligiblePlayers].sort((a, b) => {
-      if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
-      return a.name.localeCompare(b.name);
-    });
-    let participants = sortedEligible.slice(0, 8);
+    const eligiblePlayers = getEligibleAiPool(tournament);
+    const shuffledEligible = [...eligiblePlayers];
+    for (let i = shuffledEligible.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledEligible[i], shuffledEligible[j]] = [shuffledEligible[j], shuffledEligible[i]];
+    }
+    let participants = shuffledEligible.slice(0, 8);
     const playerIsEligible = eligiblePlayers.some(player => player.id === PLAYER_ID);
     if (playerIsEligible && !participants.some(player => player.id === PLAYER_ID)) {
       participants[participants.length - 1] = playersById.get(PLAYER_ID) || participants[participants.length - 1];
     }
     if (participants.length < 8) {
-      const remaining = [...players]
-        .filter(player => !participants.some(existing => existing.id === player.id))
-        .sort((a, b) => {
-          if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
-          return a.name.localeCompare(b.name);
-        });
+      const remaining = [...eligiblePlayers]
+        .filter(player => !participants.some(existing => existing.id === player.id));
       while (participants.length < 8 && remaining.length > 0) {
         const next = remaining.shift();
         if (next) participants.push(next);
       }
-    }
-    for (let i = participants.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [participants[i], participants[j]] = [participants[j], participants[i]];
     }
     const rounds: TournamentMatch[][] = [
       [],
@@ -511,6 +555,7 @@ const App: React.FC = () => {
       id: tournament.id,
       name: tournament.name,
       tier: tournament.tier,
+      category: tournament.category,
       prizes: tournament.prizes,
       surface: tournament.surface,
       rankingPoints: tournament.rankingPoints,
@@ -520,8 +565,7 @@ const App: React.FC = () => {
     };
     resolveNonPlayerMatches(state, 0);
     propagateWinners(state, 0);
-    const awards = collectRankingAwards(state);
-    return { state, awards };
+    return { state };
   };
 
   const resolveNonPlayerMatches = (state: TournamentState, roundIndex: number) => {
@@ -530,8 +574,15 @@ const App: React.FC = () => {
       if (match.winnerId) return;
       if (match.player1Id === PLAYER_ID || match.player2Id === PLAYER_ID) return;
       if (!match.player1Id || !match.player2Id) return;
-      match.winnerId = Math.random() > 0.5 ? match.player1Id : match.player2Id;
+      match.winnerId = simulateAiMatch(match.player1Id, match.player2Id);
     });
+  };
+
+  const simulateTournamentToEnd = (state: TournamentState, startRound: number) => {
+    for (let roundIndex = startRound; roundIndex < state.rounds.length; roundIndex += 1) {
+      resolveNonPlayerMatches(state, roundIndex);
+      propagateWinners(state, roundIndex);
+    }
   };
 
   const propagateWinners = (state: TournamentState, roundIndex: number) => {
@@ -570,6 +621,15 @@ const App: React.FC = () => {
     if (nextTournamentMatch.player2Id === PLAYER_ID) return nextTournamentMatch.player1Id;
     return null;
   }, [nextTournamentMatch]);
+  const nextOpponentProfile = nextOpponentId ? playersById.get(nextOpponentId) : undefined;
+  const aiLoadout = useMemo(
+    () => (tournamentState && nextOpponentProfile ? nextOpponentProfile.loadout : buildTieredLoadout(selectedAi, difficulty)),
+    [buildTieredLoadout, difficulty, nextOpponentProfile, selectedAi, tournamentState]
+  );
+  const aiStats = useMemo(
+    () => buildPlayerStats(SHOP_ITEMS, aiLoadout),
+    [aiLoadout]
+  );
   const nextOpponentName = nextOpponentId ? playersById.get(nextOpponentId)?.name : undefined;
   const nextOpponentPortrait = nextOpponentId ? getPlayerPortraitSrc(nextOpponentId) : undefined;
 
@@ -585,7 +645,7 @@ const App: React.FC = () => {
         aiStats={aiStats}
         aiProfile={selectedAi}
         playerLoadout={loadout}
-        aiLoadout={buildTieredLoadout(selectedAi, difficulty)}
+        aiLoadout={aiLoadout}
         shopItems={SHOP_ITEMS}
         opponentName={tournamentState ? nextOpponentName || 'Opponent' : undefined}
         playerPortrait={playerPortrait}
@@ -623,10 +683,7 @@ const App: React.FC = () => {
             resolveNonPlayerMatches(updated, match.round - 1);
             propagateWinners(updated, match.round - 1);
             if (updated.status === 'eliminated') {
-              for (let roundIndex = match.round; roundIndex < updated.rounds.length; roundIndex += 1) {
-                resolveNonPlayerMatches(updated, roundIndex);
-                propagateWinners(updated, roundIndex);
-              }
+              simulateTournamentToEnd(updated, match.round);
             }
             if (updated.rounds[2][0].winnerId === PLAYER_ID) updated.status = 'champion';
             if (updated.status !== 'active') {
@@ -636,11 +693,12 @@ const App: React.FC = () => {
                 tournamentName: updated.name,
                 earnings: tournamentEarnings + addedPrize,
               };
+              simulateTournamentToEnd(updated, match.round);
+              rankingAwards = collectRankingAwards(updated);
             }
-            rankingAwards = collectRankingAwards(updated);
             return updated;
           });
-          applyRankingAwards(rankingAwards);
+          if (rankingAwards.length > 0) applyRankingAwards(rankingAwards);
           if (resultToShow) {
             setTournamentResult(resultToShow);
             setTournamentState(null);
@@ -685,9 +743,8 @@ const App: React.FC = () => {
           if (!tournament) return;
           if (!isPlayerEligibleForTournament(tournament, PLAYER_ID)) return;
           setTournamentEarnings(0);
-          const { state, awards } = createTournamentState(tournament);
+          const { state } = createTournamentState(tournament);
           setTournamentState(state);
-          applyRankingAwards(awards);
         }}
         onPlayMatch={matchId => {
           if (!tournamentState) return;
