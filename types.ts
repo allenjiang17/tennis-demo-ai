@@ -78,6 +78,7 @@ export type AiTendencies = {
   awayBias: number;
   homeY: number;
   dropShotChance: number;
+  errorModifier: number;
 };
 
 export type AiProfile = {

@@ -357,6 +357,44 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     noise.start();
   }, []);
 
+  const playNetCordSound = useCallback(() => {
+    if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = audioCtxRef.current;
+
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.25, ctx.currentTime);
+    master.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(520, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.04);
+    oscGain.gain.setValueAtTime(0.15, ctx.currentTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    osc.connect(oscGain);
+    oscGain.connect(master);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.08);
+
+    const bufferSize = Math.floor(ctx.sampleRate * 0.04);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) noiseData[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.setValueAtTime(900, ctx.currentTime);
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.08, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+    noise.connect(highpass);
+    highpass.connect(noiseGain);
+    noiseGain.connect(master);
+    noise.start();
+  }, []);
+
   const addBounceMarker = useCallback((x: number, y: number) => {
     playBounceSound(false);
     const id = Date.now();
@@ -366,8 +404,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     }, 600);
   }, [playBounceSound]);
 
-  const playServeFault = useCallback((start: { x: number; y: number }, target: { x: number; y: number }, duration: number) => {
+  const playServeFault = useCallback((start: { x: number; y: number }, target: { x: number; y: number }, duration: number, isPlayer: boolean) => {
     isBallLiveRef.current = false;
+    playHitSound(isPlayer);
     setCurrentAnimDuration(0);
     setBallTimingFunction(PRE_BOUNCE_TIMING);
     setBallPos({ x: start.x, y: start.y });
@@ -378,8 +417,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     setTimeout(() => {
       setCurrentAnimDuration(duration);
       setBallPos({ x: target.x, y: target.y });
+      if (target.y === SERVE_NET_Y) {
+        playNetCordSound();
+      }
     }, 20);
-  }, []);
+  }, [playHitSound, playNetCordSound]);
 
   const triggerAiCommentary = async (quality: ShotQuality) => {
     const text = 'Wow!';
@@ -673,8 +715,6 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setBallPos({ x: bounce.x, y: bounce.y });
       if (isDropShot) {
         triggerFeedback("DROP SHOT!", 600);
-      } else {
-        triggerFeedback(timingFactor < -0.3 ? "CROSS COURT!" : timingFactor > 0.3 ? "DOWN THE LINE!" : "CLEAN HIT!", 600);
       }
       ballHasBouncedRef.current = false;
       
@@ -869,11 +909,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const controlFactor = Math.max(0.15, 1 - aiControl / 160);
         const powerFactor = Math.max(0, Math.min(1, (hitSpin + hitSpeed / 20) / 200));
         const baseMissChance = 0.04 + powerFactor * 0.25;
-        const missChance = Math.max(0.01, baseMissChance * controlFactor);
+        const errorModifier = Math.max(0.5, aiProfile.tendencies.errorModifier || 1);
+        const missChance = Math.max(0.01, baseMissChance * controlFactor * errorModifier);
         const inRange = aiDistFromBall < aiHitRadius;
+        const rollMiss = Math.random() < missChance;
 
         if (isDropShot) {
-          if (!inRange || Math.random() < missChance) {
+          if (!inRange) {
             triggerFeedback("DROPSHOT WINNER! 🏆", 600);
             setAiRunTarget(null);
             ballTimeoutRef.current = setTimeout(() => {
@@ -881,13 +923,51 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
             }, 600);
             return;
           }
+        if (rollMiss) {
+          triggerFeedback("NET! ❌", 600);
+          setAiRunTarget(null);
+          setIsAiSwinging(true);
+          setIsAiVolleySwinging(false);
+          setTimeout(() => {
+            setIsAiSwinging(false);
+            setIsAiVolleySwinging(false);
+          }, 250);
+          const netX = extendShotToY(
+            { x: dropStopX, y: dropStopY },
+            { x: currentPlayerPosRef.current.x, y: currentPlayerPosRef.current.y },
+            SERVE_NET_Y
+            );
+          const netDuration = getPostBounceDuration(
+            preStart,
+            preEnd,
+            hitSpeed,
+            { x: bounceX, y: aiBounceY },
+            { x: netX, y: SERVE_NET_Y }
+          );
+          playHitSound(false);
+          shotStartTimeRef.current = performance.now();
+          setBallTimingFunction(POST_BOUNCE_TIMING);
+          shotDurationRef.current = netDuration;
+          shotStartPosRef.current = { x: dropStopX, y: dropStopY };
+          shotEndPosRef.current = { x: netX, y: SERVE_NET_Y };
+          setCurrentAnimDuration(netDuration);
+          setBallPos({ x: netX, y: SERVE_NET_Y });
+          setTimeout(() => {
+            playNetCordSound();
+          }, netDuration);
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            resetPoint('player');
+          }, netDuration);
+          return;
+          }
           setAiRunTarget(null);
           startAiShot({ x: dropStopX, y: dropStopY });
           return;
         }
 
-        if (!inRange || Math.random() < missChance) {
-          triggerFeedback(inRange ? "MISSED!" : "WINNER! 🏆", 600);
+        if (!inRange) {
+          triggerFeedback("WINNER! 🏆", 600);
           setAiRunTarget(null);
           const outY = -24;
           const outX = extendShotToY(preStart, preEnd, outY);
@@ -913,11 +993,51 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           return;
         }
 
+        if (rollMiss) {
+          triggerFeedback("NET! ❌", 600);
+          setAiRunTarget(null);
+          setIsAiSwinging(true);
+          setIsAiVolleySwinging(false);
+          setTimeout(() => {
+            setIsAiSwinging(false);
+            setIsAiVolleySwinging(false);
+          }, 250);
+          const netX = extendShotToY(
+            postTarget,
+            { x: currentPlayerPosRef.current.x, y: currentPlayerPosRef.current.y },
+            SERVE_NET_Y
+          );
+          const netDuration = getPostBounceDuration(
+            preStart,
+            preEnd,
+            hitSpeed,
+            { x: bounceX, y: aiBounceY },
+            { x: netX, y: SERVE_NET_Y }
+          );
+          playHitSound(false);
+          shotStartTimeRef.current = performance.now();
+          setBallTimingFunction(POST_BOUNCE_TIMING);
+          shotDurationRef.current = netDuration;
+          shotStartPosRef.current = postTarget;
+          shotEndPosRef.current = { x: netX, y: SERVE_NET_Y };
+          setCurrentAnimDuration(netDuration);
+          setBallPos({ x: netX, y: SERVE_NET_Y });
+          setTimeout(() => {
+            playNetCordSound();
+          }, netDuration);
+
+          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+          ballTimeoutRef.current = setTimeout(() => {
+            resetPoint('player');
+          }, netDuration);
+          return;
+        }
+
         setAiRunTarget(null);
         startAiShot({ x: contactX, y: contactY });
       }, postDuration);
     }, hitSpeed);
-  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, extendShotToY, getAiSpeed, getPostBounceDuration, isOutOfBounds, resetPoint, startAiShot, triggerFeedback]);
+  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, extendShotToY, getAiSpeed, getPostBounceDuration, isOutOfBounds, playNetCordSound, resetPoint, startAiShot, triggerFeedback]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
@@ -944,7 +1064,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         if (netFault || outFault) {
           triggerFeedback("FAULT!", 700);
           setIsServePending(false);
-          playServeFault(p, targetPoint, serveDuration);
+          playServeFault(p, targetPoint, serveDuration, true);
           if (serveNumber === 1) {
             setTimeout(() => {
               setServeNumber(2);
@@ -1058,10 +1178,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         triggerFeedback("VOLLEY!", 700);
       } else if (stroke === 'FH') {
         targetX = 4.5 + (95.5 - 4.5) * lerpT;
-        triggerFeedback(timingFactor < -0.3 ? "CROSS COURT FH!" : timingFactor > 0.3 ? "INSIDE-OUT FH!" : "CLEAN FH!", 700);
       } else {
         targetX = 95.5 + (4.5 - 95.5) * lerpT;
-        triggerFeedback(timingFactor < -0.3 ? "CROSS COURT BH!" : timingFactor > 0.3 ? "INSIDE-OUT BH!" : "CLEAN BH!", 700);
       }
       
       triggerAiCommentary(ShotQuality.PERFECT);
@@ -1156,7 +1274,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       if (netFault || outFault) {
         triggerFeedback("FAULT!", 700);
         setIsServePending(false);
-        playServeFault(start, targetPoint, serveDuration);
+        playServeFault(start, targetPoint, serveDuration, false);
         if (serveNumber === 1) {
           setTimeout(() => {
             setServeNumber(2);

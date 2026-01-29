@@ -2,6 +2,25 @@ import { AiProfile } from '../types';
 
 export const AI_PROFILES: AiProfile[] = [
   {
+    id: 'practice-partner',
+    name: 'Practice Partner',
+    description: 'Soft pace, relentless retriever with elite legs.',
+    loadout: {
+      serveFirst: 'amateur-serve-1',
+      serveSecond: 'amateur-serve-1',
+      forehand: 'amateur-forehand-1',
+      backhand: 'amateur-backhand-1',
+      volley: 'amateur-volley-1',
+      athleticism: 'special-murray-athleticism',
+    },
+    tendencies: {
+      awayBias: 0.10,
+      homeY: 0,
+      dropShotChance: 0.02,
+      errorModifier: 0.85,
+    },
+  },
+  {
     id: 'defensive-baseliner',
     name: 'Defensive Baseliner',
     description: 'Stays deep, absorbs pace, mixes targets evenly.',
@@ -15,8 +34,9 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.5,
-      homeY: 12,
+      homeY: 0,
       dropShotChance: 0.1,
+      errorModifier: 0.95,
     },
   },
   {
@@ -33,8 +53,9 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.8,
-      homeY: 16,
+      homeY: 10,
       dropShotChance: 0.3,
+      errorModifier: 1.25,
     },
   },
   {
@@ -51,8 +72,9 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.75,
-      homeY: 72,
+      homeY: 75,
       dropShotChance: 0.1,
+      errorModifier: 1.2,
     },
   },
   {
@@ -69,8 +91,9 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.4,
-      homeY: 18,
+      homeY: 5,
       dropShotChance: 0.05,
+      errorModifier: 0.9,
     },
   },
   {
@@ -87,8 +110,9 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.6,
-      homeY: 24,
+      homeY: 5,
       dropShotChance: 0.08,
+      errorModifier: 1.1,
     },
   },
   {
@@ -105,8 +129,9 @@ export const AI_PROFILES: AiProfile[] = [
     },
     tendencies: {
       awayBias: 0.55,
-      homeY: 40,
+      homeY: 10,
       dropShotChance: 0.18,
+      errorModifier: 1.0,
     },
   },
 ];
