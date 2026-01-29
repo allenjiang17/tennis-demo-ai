@@ -33,7 +33,7 @@ const OpponentSelect: React.FC<OpponentSelectProps> = ({
           onClick={onBack}
           className="px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
         >
-          Back To Shop
+          Back To Menu
         </button>
       </div>
 
@@ -82,7 +82,7 @@ const OpponentSelect: React.FC<OpponentSelectProps> = ({
                     Away Bias {Math.round(profile.tendencies.awayBias * 100)}%
                   </div>
                   <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                    Net Push {Math.round((profile.tendencies.homeY / 45) * 100)}%
+                    Net Push {Math.round((profile.tendencies.homeY / 90) * 100)}%
                   </div>
                   <div className="bg-black/30 rounded-full px-3 py-1 text-center">
                     Drop Shot {Math.round(profile.tendencies.dropShotChance * 100)}%

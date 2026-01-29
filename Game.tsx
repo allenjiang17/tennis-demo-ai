@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { AiProfile, GameStatus, ShotQuality, GameState, PlayerStats } from './types';
+import { AiProfile, GameStatus, ShotQuality, GameState, Loadout, PlayerStats, ShopItem } from './types';
 import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
 
@@ -46,10 +46,20 @@ type GameProps = {
   playerStats: PlayerStats;
   aiStats: PlayerStats;
   aiProfile: AiProfile;
+  playerLoadout: Loadout;
+  aiLoadout: Loadout;
+  shopItems: ShopItem[];
+  opponentName?: string;
+  playerPortrait?: string;
+  opponentPortrait?: string;
+  playerName?: string;
   onExit?: () => void;
+  onMatchEnd?: (winner: 'player' | 'opponent') => void;
 };
 
-const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) => {
+const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, opponentName, playerPortrait, opponentPortrait, playerName, onExit, onMatchEnd }) => {
+  const opponentLabel = opponentName || 'Master AI';
+  const playerLabel = playerName?.trim() || 'You';
   const [gameState, setGameState] = useState<GameState>({
     player: { score: 0, name: 'Pro' },
     opponent: { score: 0, name: 'Master AI' },
@@ -80,6 +90,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   const [serveNumber, setServeNumber] = useState(1);
   const [isServePending, setIsServePending] = useState(true);
   const [serveTarget, setServeTarget] = useState<'wide' | 'middle'>('wide');
+  const [rosterOpen, setRosterOpen] = useState<'player' | 'opponent' | null>(null);
+  const matchReportedRef = useRef(false);
   
   // Meter states
   const [meterValue, setMeterValue] = useState(0); // 0 to 100
@@ -112,6 +124,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   useEffect(() => {
     currentAiPosRef.current = aiPos;
   }, [aiPos]);
+
+  useEffect(() => {
+    if (!onMatchEnd) return;
+    if (gameState.status !== GameStatus.GAME_OVER || matchReportedRef.current) return;
+    matchReportedRef.current = true;
+    const winner = gameState.player.score >= gameState.opponent.score ? 'player' : 'opponent';
+    onMatchEnd(winner);
+  }, [gameState.opponent.score, gameState.player.score, gameState.status, onMatchEnd]);
 
   // Helper to show feedback briefly
   const triggerFeedback = useCallback((text: string, duration = 800) => {
@@ -1231,6 +1251,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   }, [addBounceMarker, gameState.status, getPostBounceDuration, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, playHitSound, playServeFault, resetPoint, schedulePlayerMiss, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback]);
 
   const startGame = () => {
+    matchReportedRef.current = false;
     setGameState(prev => ({
       ...prev,
       player: { ...prev.player, score: 0 },
@@ -1266,6 +1287,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   const aiVolleyDebugTarget = currentAnimDuration > 0 && !ballHasBouncedRef.current
     ? { x: extendShotToY(shotStartPosRef.current, shotEndPosRef.current, AI_VOLLEY_ZONE_Y), y: AI_VOLLEY_ZONE_Y }
     : undefined;
+  const itemById = useMemo(() => new Map(shopItems.map(item => [item.id, item])), [shopItems]);
+  const rosterTarget = rosterOpen === 'player'
+    ? { name: playerLabel, subtitle: 'Pro', loadout: playerLoadout, portrait: playerPortrait }
+    : rosterOpen === 'opponent'
+      ? { name: opponentLabel, subtitle: aiProfile.name, loadout: aiLoadout, portrait: opponentPortrait }
+      : null;
 
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center select-none bg-slate-950 text-white overflow-hidden font-inter">
@@ -1280,6 +1307,46 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           <span className="text-[10px] font-orbitron text-red-400 tracking-[0.2em] uppercase mb-1">AI</span>
           <span className="text-6xl font-orbitron font-bold tracking-tighter">{gameState.opponent.score}</span>
         </div>
+      </div>
+
+      <div className="absolute top-28 left-6 z-30 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setRosterOpen('player')}
+          className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10 transition-all"
+        >
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 border-2 border-white flex items-center justify-center overflow-hidden text-[10px] font-black">
+            {playerPortrait ? (
+              <img src={playerPortrait} alt="Player portrait" className="w-full h-full object-cover" />
+            ) : (
+              'YOU'
+            )}
+          </div>
+          <div className="text-left">
+            <div className="text-[10px] font-orbitron uppercase tracking-widest text-white">{playerLabel}</div>
+            <div className="text-[9px] uppercase tracking-widest text-slate-400">View loadout</div>
+          </div>
+        </button>
+      </div>
+
+      <div className="absolute top-28 right-6 z-30 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setRosterOpen('opponent')}
+          className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10 transition-all"
+        >
+          <div className="text-right">
+            <div className="text-[10px] font-orbitron uppercase tracking-widest text-white">{opponentLabel}</div>
+            <div className="text-[9px] uppercase tracking-widest text-slate-400">View loadout</div>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-900 border-2 border-white flex items-center justify-center overflow-hidden text-[9px] font-black">
+            {opponentPortrait ? (
+              <img src={opponentPortrait} alt={`${opponentLabel} portrait`} className="w-full h-full object-cover" />
+            ) : (
+              'AI'
+            )}
+          </div>
+        </button>
       </div>
 
       {onExit && (
@@ -1356,6 +1423,77 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           </div>
         </div>
       </div>
+
+      {rosterTarget && (
+        <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-950/90 p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                {rosterTarget.portrait && (
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 bg-black/30">
+                    <img src={rosterTarget.portrait} alt={`${rosterTarget.name} portrait`} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div>
+                  <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">Loadout & Stats</div>
+                  <div className="mt-2 text-2xl font-orbitron uppercase tracking-widest">{rosterTarget.name}</div>
+                  <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
+                    {rosterTarget.subtitle}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRosterOpen(null)}
+                className="px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] uppercase tracking-widest text-slate-300">
+              {([
+                { label: '1st Serve', id: rosterTarget.loadout.serveFirst },
+                { label: '2nd Serve', id: rosterTarget.loadout.serveSecond },
+                { label: 'Forehand', id: rosterTarget.loadout.forehand },
+                { label: 'Backhand', id: rosterTarget.loadout.backhand },
+                { label: 'Volley', id: rosterTarget.loadout.volley },
+                { label: 'Athleticism', id: rosterTarget.loadout.athleticism },
+              ]).map(slot => {
+                const item = itemById.get(slot.id);
+                return (
+                  <div key={slot.label} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span>{slot.label}</span>
+                      <span className="text-slate-400">{item?.player || 'Unknown'}</span>
+                    </div>
+                    <div className="mt-2 text-[9px] text-slate-400">
+                      {item?.id || slot.id}
+                    </div>
+                    {item?.shot === 'volley' ? (
+                      <div className="mt-3 flex gap-2">
+                        <span className="bg-black/40 rounded-full px-3 py-1">CTR {(item.stats as any).control}</span>
+                        <span className="bg-black/40 rounded-full px-3 py-1">ACC {(item.stats as any).accuracy}</span>
+                      </div>
+                    ) : item?.shot === 'athleticism' ? (
+                      <div className="mt-3 flex gap-2">
+                        <span className="bg-black/40 rounded-full px-3 py-1">SPD {(item.stats as any).speed}</span>
+                        <span className="bg-black/40 rounded-full px-3 py-1">STM {(item.stats as any).stamina}</span>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex gap-2">
+                        <span className="bg-black/40 rounded-full px-3 py-1">PWR {(item?.stats as any)?.power}</span>
+                        <span className="bg-black/40 rounded-full px-3 py-1">SPN {(item?.stats as any)?.spin}</span>
+                        <span className="bg-black/40 rounded-full px-3 py-1">CTR {(item?.stats as any)?.control}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Game Court */}
       <div className="relative w-full h-full flex items-center justify-center">

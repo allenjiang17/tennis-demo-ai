@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Loadout, PlayerStats, ShopItem, ShotType, ShotStats, AthleticismStats, VolleyStats } from '../types';
 
 type ShopProps = {
@@ -9,6 +9,12 @@ type ShopProps = {
   onBuy: (item: ShopItem) => void;
   onEquip: (item: ShopItem, slot: keyof Loadout) => void;
   onStart: () => void;
+  onBack?: () => void;
+  portraits?: { id: string; name: string; src: string }[];
+  selectedPortraitId?: string;
+  onSelectPortrait?: (id: string) => void;
+  playerName?: string;
+  onPlayerNameChange?: (name: string) => void;
 };
 
 const typeLabel: Record<ShotType, string> = {
@@ -78,8 +84,16 @@ const Shop: React.FC<ShopProps> = ({
   onBuy,
   onEquip,
   onStart,
+  onBack,
+  portraits,
+  selectedPortraitId,
+  onSelectPortrait,
+  playerName,
+  onPlayerNameChange,
 }) => {
   const stats = buildStats(items, loadout);
+  const [showPortraits, setShowPortraits] = useState(false);
+  const selectedPortrait = portraits?.find(portrait => portrait.id === selectedPortraitId);
   const itemsByType: Record<ShotType, ShopItem[]> = {
     serve: items.filter(item => item.shot === 'serve'),
     forehand: items.filter(item => item.shot === 'forehand'),
@@ -96,16 +110,95 @@ const Shop: React.FC<ShopProps> = ({
           <div>
             <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">ACE MASTER</h1>
             <p className="text-xs font-orbitron uppercase tracking-widest text-slate-400 mt-2">
-              Shot Shop
+              Player Page
             </p>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-right">
-            <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
-              Credits
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+              >
+                Back To Menu
+              </button>
+            )}
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-right">
+              <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+                Credits
+              </div>
+              <div className="text-2xl font-orbitron font-bold">{wallet}</div>
             </div>
-            <div className="text-2xl font-orbitron font-bold">{wallet}</div>
           </div>
         </div>
+
+        {portraits && (
+          <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
+                  Player Portrait
+                </div>
+                <div className="mt-2 text-lg font-orbitron uppercase tracking-widest">Profile</div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setShowPortraits(prev => !prev)}
+                className="w-20 h-20 rounded-2xl overflow-hidden border border-white/10 bg-black/30"
+              >
+                {selectedPortrait ? (
+                  <img src={selectedPortrait.src} alt={selectedPortrait.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[9px] uppercase tracking-widest text-slate-400">
+                    Select
+                  </div>
+                )}
+              </button>
+              <div className="flex-1">
+                <div className="text-[10px] uppercase tracking-widest text-slate-400">Name</div>
+                <input
+                  value={playerName || ''}
+                  onChange={event => onPlayerNameChange?.(event.target.value)}
+                  placeholder="Your name"
+                  className="mt-2 w-full rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm font-orbitron uppercase tracking-widest text-white/90 placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/60"
+                />
+              </div>
+            </div>
+            {showPortraits && (
+              <>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                  {portraits.map(portrait => (
+                    <button
+                      key={portrait.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectPortrait?.(portrait.id);
+                        setShowPortraits(false);
+                      }}
+                      className={`rounded-2xl border p-2 transition-all ${
+                        portrait.id === selectedPortraitId
+                          ? 'border-emerald-400/70 bg-emerald-500/10'
+                          : 'border-white/10 bg-white/5 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="aspect-square rounded-xl overflow-hidden bg-black/30">
+                        <img src={portrait.src} alt={portrait.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="mt-2 text-[9px] font-orbitron uppercase tracking-widest text-slate-300">
+                        {portrait.name}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 text-[9px] uppercase tracking-widest text-slate-500">
+                  Drop generated portraits into `public/portraits/` with the matching filenames.
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8">
           <div className="space-y-8">
