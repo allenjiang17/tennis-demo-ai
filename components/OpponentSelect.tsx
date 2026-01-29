@@ -4,6 +4,8 @@ import { AiProfile } from '../types';
 type OpponentSelectProps = {
   profiles: AiProfile[];
   selectedId: string;
+  difficulty: 'amateur' | 'pro' | 'elite';
+  onDifficultyChange: (tier: 'amateur' | 'pro' | 'elite') => void;
   onSelect: (profile: AiProfile) => void;
   onBack: () => void;
 };
@@ -11,6 +13,8 @@ type OpponentSelectProps = {
 const OpponentSelect: React.FC<OpponentSelectProps> = ({
   profiles,
   selectedId,
+  difficulty,
+  onDifficultyChange,
   onSelect,
   onBack,
 }) => (
@@ -34,6 +38,34 @@ const OpponentSelect: React.FC<OpponentSelectProps> = ({
       </div>
 
       <div className="mt-10 grid grid-cols-1 gap-6">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">Difficulty Tier</div>
+              <div className="mt-2 text-lg font-orbitron uppercase tracking-widest">Choose Your Challenge</div>
+            </div>
+            <div className="flex items-center gap-2">
+              {(['amateur', 'pro', 'elite'] as const).map(tier => (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={() => onDifficultyChange(tier)}
+                  className={`px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
+                    difficulty === tier
+                      ? 'border-emerald-300/70 text-emerald-200 bg-emerald-500/10'
+                      : 'border-white/20 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  {tier}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 text-[10px] uppercase tracking-widest text-slate-400">
+            AI loadouts will use {difficulty} tier shots and stats.
+          </div>
+        </div>
+
         {profiles.map(profile => (
           <div
             key={profile.id}

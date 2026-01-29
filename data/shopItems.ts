@@ -2,7 +2,7 @@ import { ShopItem } from '../types';
 
 export const SHOP_ITEMS: ShopItem[] = [
   // Amateur (gray)
-  { id: 'amateur-serve-1', player: 'Amateur', shot: 'serve', stats: { power: 45, spin: 35, control: 50, shape: 40 }, price: 0, tier: 'amateur' },
+  { id: 'amateur-serve-1', player: 'Amateur', shot: 'serve', stats: { power: 45, spin: 35, control: 100, shape: 40 }, price: 0, tier: 'amateur' },
   { id: 'amateur-serve-2', player: 'Amateur', shot: 'serve', stats: { power: 55, spin: 45, control: 45, shape: 40 }, price: 20, tier: 'amateur' },
   { id: 'amateur-forehand-1', player: 'Amateur', shot: 'forehand', stats: { power: 50, spin: 40, control: 45, shape: 35 }, price: 20, tier: 'amateur' },
   { id: 'amateur-forehand-2', player: 'Amateur', shot: 'forehand', stats: { power: 55, spin: 45, control: 40, shape: 40 }, price: 40, tier: 'amateur' },

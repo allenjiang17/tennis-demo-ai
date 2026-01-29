@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Game from './Game';
 import Shop from './components/Shop';
 import OpponentSelect from './components/OpponentSelect';
-import { AiProfile, Loadout, PlayerStats, ShopItem } from './types';
+import { AiProfile, Loadout, PlayerStats, ShopItem, ShotType } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
 
@@ -43,6 +43,8 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   };
 };
 
+type DifficultyTier = 'amateur' | 'pro' | 'elite';
+
 const App: React.FC = () => {
   const [screen, setScreen] = useState<'shop' | 'opponent' | 'game'>('shop');
   const [wallet, setWallet] = useState(5000);
@@ -51,14 +53,40 @@ const App: React.FC = () => {
   );
   const [loadout, setLoadout] = useState<Loadout>(DEFAULT_LOADOUT);
   const [selectedAi, setSelectedAi] = useState<AiProfile>(AI_PROFILES[0]);
+  const [difficulty, setDifficulty] = useState<DifficultyTier>('amateur');
+
+  const buildTieredLoadout = useMemo(() => {
+    const byId = new Map(SHOP_ITEMS.map(item => [item.id, item]));
+    return (profile: AiProfile, tier: DifficultyTier): Loadout => {
+      const tierItems = SHOP_ITEMS.filter(item => item.tier === tier);
+      const pickTierItem = (shot: ShotType, fallbackId?: string, fallbackIndex = 0) => {
+        if (fallbackId) {
+          const candidate = byId.get(fallbackId);
+          if (candidate && candidate.tier === tier) return candidate.id;
+        }
+        const match = tierItems.filter(item => item.shot === shot);
+        if (match.length === 0) return fallbackId || profile.loadout[shot as keyof Loadout];
+        return match[Math.min(fallbackIndex, match.length - 1)].id;
+      };
+
+      return {
+        serveFirst: pickTierItem('serve', profile.loadout.serveFirst, 0),
+        serveSecond: pickTierItem('serve', profile.loadout.serveSecond, 1),
+        forehand: pickTierItem('forehand', profile.loadout.forehand),
+        backhand: pickTierItem('backhand', profile.loadout.backhand),
+        volley: pickTierItem('volley', profile.loadout.volley),
+        athleticism: pickTierItem('athleticism', profile.loadout.athleticism),
+      };
+    };
+  }, []);
 
   const playerStats = useMemo(
     () => buildPlayerStats(SHOP_ITEMS, loadout),
     [loadout]
   );
   const aiStats = useMemo(
-    () => buildPlayerStats(SHOP_ITEMS, selectedAi.loadout),
-    [selectedAi]
+    () => buildPlayerStats(SHOP_ITEMS, buildTieredLoadout(selectedAi, difficulty)),
+    [buildTieredLoadout, difficulty, selectedAi]
   );
 
   const handleBuy = (item: ShopItem) => {
@@ -89,6 +117,8 @@ const App: React.FC = () => {
       <OpponentSelect
         profiles={AI_PROFILES}
         selectedId={selectedAi.id}
+        difficulty={difficulty}
+        onDifficultyChange={setDifficulty}
         onSelect={profile => {
           setSelectedAi(profile);
           setScreen('game');

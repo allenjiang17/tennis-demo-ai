@@ -4,7 +4,7 @@ import { AiProfile, GameStatus, ShotQuality, GameState, PlayerStats } from './ty
 import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
 
-const AI_COURT_BOUNDS = { MIN_Y: -18, MAX_Y: 90 };
+const AI_COURT_BOUNDS = { MIN_X: -10, MAX_X: 110, MIN_Y: -18, MAX_Y: 90 };
 const SERVE_BASE_DURATION = 700;
 const SHOT_BASE_DURATION = 800;
 const DROP_SHOT_BASE_DURATION = 2000;
@@ -189,7 +189,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           const nextX = Math.abs(dx) < aiSpeed ? aiTargetXRef.current : prev.x + Math.sign(dx) * aiSpeed;
           const nextY = Math.abs(dy) < aiSpeed ? aiTargetYRef.current : prev.y + Math.sign(dy) * aiSpeed;
           return {
-            x: nextX,
+            x: Math.max(AI_COURT_BOUNDS.MIN_X, Math.min(AI_COURT_BOUNDS.MAX_X, nextX)),
             y: Math.max(AI_COURT_BOUNDS.MIN_Y, Math.min(AI_COURT_BOUNDS.MAX_Y, nextY)),
           };
         });
@@ -375,7 +375,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           return SHOT_BASE_DURATION;
       }
     })();
-    const multiplier = 1.2 - (power / 100) * 0.3;
+    const multiplier = 1.5 - (power / 100) * 0.8;
     return Math.max(200, baseDuration * multiplier);
   }, []);
 
@@ -810,7 +810,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
       const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
       const aiStroke = aiCheckX < aiNow.x ? 'BH' : 'FH';
       const aiHitRadius = aiStroke === 'FH' ? aiHitRadiusFH : aiHitRadiusBH;
-      const canReach = aiDistFromBall < aiHitRadius;
+      const aiSpeed = getAiSpeed();
+      const aiTravelMs = aiSpeed > 0 ? (aiDistFromBall / aiSpeed) * (1000 / 60) : Number.POSITIVE_INFINITY;
+      const timeToContactMs = getPostBounceDuration(
+        preStart,
+        preEnd,
+        hitSpeed,
+        { x: bounceX, y: aiBounceY },
+        { x: aiCheckX, y: aiCheckY }
+      );
+      const canReach = aiDistFromBall < aiHitRadius || aiTravelMs <= timeToContactMs;
       const missFalloff = 40;
       const baseMiss = 0.1;
       const missScale = 0.8;
