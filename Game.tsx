@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { AiProfile, GameStatus, ShotQuality, GameState, Loadout, PlayerStats, ShopItem } from './types';
+import { AiProfile, CourtSurface, GameStatus, ShotQuality, GameState, Loadout, PlayerStats, ShopItem } from './types';
 import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
 
@@ -51,6 +51,7 @@ type GameProps = {
   playerLoadout: Loadout;
   aiLoadout: Loadout;
   shopItems: ShopItem[];
+  surface: CourtSurface;
   opponentName?: string;
   playerPortrait?: string;
   opponentPortrait?: string;
@@ -59,7 +60,7 @@ type GameProps = {
   onMatchEnd?: (winner: 'player' | 'opponent') => void;
 };
 
-const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, opponentName, playerPortrait, opponentPortrait, playerName, onExit, onMatchEnd }) => {
+const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, surface, opponentName, playerPortrait, opponentPortrait, playerName, onExit, onMatchEnd }) => {
   const opponentLabel = opponentName || 'Master AI';
   const playerLabel = playerName?.trim() || 'You';
   const [gameState, setGameState] = useState<GameState>({
@@ -183,6 +184,17 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     () => Math.max(AI_COURT_BOUNDS.MIN_Y, Math.min(AI_COURT_BOUNDS.MAX_Y, aiProfile.tendencies.homeY)),
     [aiProfile.tendencies.homeY]
   );
+  const surfacePostBounceMultiplier = useMemo(() => {
+    switch (surface) {
+      case 'clay':
+        return 1.28;
+      case 'hardcourt':
+        return 1.14;
+      case 'grass':
+      default:
+        return 1;
+    }
+  }, [surface]);
 
   // Movement loop
   useEffect(() => {
@@ -461,8 +473,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const endSpeed = (preDist / preDuration) * endSlope;
     if (endSpeed <= 0) return minDuration;
     const postDist = Math.hypot(postEnd.x - postStart.x, postEnd.y - postStart.y);
-    return Math.max(minDuration, postDist / endSpeed);
-  }, []);
+    const baseDuration = postDist / endSpeed;
+    return Math.max(minDuration, baseDuration * surfacePostBounceMultiplier);
+  }, [surfacePostBounceMultiplier]);
 
 
   const getServeNetChance = useCallback((spin: number) => {
@@ -1629,6 +1642,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           playerHitRadiusBH={playerHitRadiusBH}
           aiHitRadiusFH={aiHitRadiusFH}
           aiHitRadiusBH={aiHitRadiusBH}
+          surface={surface}
           serveDebug={serveDebug}
           aiVolleyZoneY={AI_VOLLEY_ZONE_Y}
           aiVolleyTarget={aiVolleyDebugTarget}

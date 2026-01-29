@@ -89,3 +89,5 @@ export type AiProfile = {
   loadout: Loadout;
   tendencies: AiTendencies;
 };
+
+export type CourtSurface = 'grass' | 'hardcourt' | 'clay';

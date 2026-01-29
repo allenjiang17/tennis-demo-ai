@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { PHYSICS } from '../constants';
+import { CourtSurface } from '../types';
 
 interface BounceMarker {
   id: number;
@@ -31,6 +32,7 @@ interface CourtProps {
   isSwinging: boolean;
   isVolleySwinging: boolean;
   bounceMarkers: BounceMarker[];
+  surface: CourtSurface;
 }
 
 const Court: React.FC<CourtProps> = ({ 
@@ -54,7 +56,8 @@ const Court: React.FC<CourtProps> = ({
   lastStroke, 
   isSwinging,
   isVolleySwinging,
-  bounceMarkers 
+  bounceMarkers,
+  surface,
 }) => {
   const getRacketRotation = () => {
     const idle = lastStroke === 'BH' ? 135 : 45;
@@ -115,16 +118,34 @@ const Court: React.FC<CourtProps> = ({
     : null;
   const aiVolleyTargetOnCourt = aiVolleyTarget ? mapToCourt(aiVolleyTarget) : null;
   const aiRunTargetOnCourt = aiRunTarget ? mapToCourt(aiRunTarget) : null;
+  const surfaceTheme = {
+    clay: {
+      court: 'bg-orange-900',
+      playable: 'bg-orange-700',
+      glow: 'shadow-[0_0_60px_rgba(249,115,22,0.45)]',
+    },
+    hardcourt: {
+      court: 'bg-sky-900',
+      playable: 'bg-sky-700',
+      glow: 'shadow-[0_0_60px_rgba(56,189,248,0.45)]',
+    },
+    grass: {
+      court: 'bg-emerald-900',
+      playable: 'bg-emerald-600',
+      glow: 'shadow-[0_0_60px_rgba(16,185,129,0.55)]',
+    },
+  } as const;
+  const activeTheme = surfaceTheme[surface];
 
   return (
     <div className="relative w-full h-full perspective-1000 overflow-hidden bg-slate-900 flex items-start justify-center">
       {/* Court Grid */}
       <div 
-        className={`relative w-[70vw] h-[135vh] max-w-[680px] bg-emerald-900 transition-transform [transform:perspective(1200px)_rotateX(30deg)_translateY(-230px)] ${isSwinging ? 'scale-[1.002]' : ''}`}
+        className={`relative w-[70vw] h-[135vh] max-w-[680px] ${activeTheme.court} transition-transform [transform:perspective(1200px)_rotateX(30deg)_translateY(-230px)] ${isSwinging ? 'scale-[1.002]' : ''}`}
       >
         {/* Playable Court Surface */}
         <div 
-          className="absolute bg-emerald-800 border-4 border-white shadow-[0_0_60px_rgba(16,185,129,0.4)]"
+          className={`absolute ${activeTheme.playable} border-4 border-white ${activeTheme.glow}`}
           style={{ top: `${playableInsetTop}%`, bottom: `${playableInsetBottom}%`, left: `${playableInsetX}%`, right: `${playableInsetX}%` }}
         />
 
@@ -176,7 +197,7 @@ const Court: React.FC<CourtProps> = ({
 
         {aiVolleyZoneOnCourt && (
           <div
-            className="absolute pointer-events-none z-10"
+            className="absolute pointer-events-none z-10 hidden"
             style={{
               left: `${playableInsetX}%`,
               right: `${playableInsetX}%`,
@@ -190,7 +211,7 @@ const Court: React.FC<CourtProps> = ({
 
         {aiVolleyTargetOnCourt && (
           <div
-            className="absolute pointer-events-none z-10 w-3 h-3 rounded-full bg-fuchsia-200 shadow-[0_0_10px_rgba(232,121,249,0.9)]"
+            className="absolute pointer-events-none z-10 hidden w-3 h-3 rounded-full bg-fuchsia-200 shadow-[0_0_10px_rgba(232,121,249,0.9)]"
             style={{
               left: `${aiVolleyTargetOnCourt.x}%`,
               top: `${aiVolleyTargetOnCourt.y}%`,
@@ -225,14 +246,16 @@ const Court: React.FC<CourtProps> = ({
 
         {serveDebug?.visible && serveDebugOnCourt && (
           <div
-            className="absolute pointer-events-none z-10 border border-cyan-200/70 border-dashed rounded-full aspect-square"
+            className="absolute pointer-events-none z-10 rounded-full aspect-square border border-cyan-200/80 shadow-[0_0_18px_rgba(125,211,252,0.35)]"
             style={{
               width: `${serveDebugRadiusX * 2}%`,
               left: `${serveDebugOnCourt.x}%`,
               top: `${serveDebugOnCourt.y}%`,
               transform: 'translate(-50%, -50%)',
             }}
-          />
+          >
+            <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-200 shadow-[0_0_14px_rgba(125,211,252,0.9)]" />
+          </div>
         )}
 
         <div 

@@ -7,7 +7,7 @@ import ShotShop from './components/ShotShop';
 import ShotBoxOpen from './components/ShotBoxOpen';
 import Tournaments from './components/Tournaments';
 import TournamentResult from './components/TournamentResult';
-import { AiProfile, Loadout, PlayerStats, ShopItem, ShotType } from './types';
+import { AiProfile, CourtSurface, Loadout, PlayerStats, ShopItem, ShotType } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
 import { PORTRAITS } from './data/portraits';
@@ -50,6 +50,7 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
 };
 
 type DifficultyTier = 'amateur' | 'pro' | 'elite';
+
 type TournamentDef = {
   id: string;
   name: string;
@@ -57,6 +58,7 @@ type TournamentDef = {
   description: string;
   prizes: number[];
   image?: string;
+  surface: CourtSurface;
 };
 
 type TournamentMatch = {
@@ -76,6 +78,7 @@ type TournamentState = {
   name: string;
   tier: DifficultyTier;
   prizes: number[];
+  surface: CourtSurface;
   status: 'active' | 'eliminated' | 'champion';
   rounds: TournamentMatch[][];
 };
@@ -91,6 +94,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'ITF Monastir 15K',
     tier: 'amateur',
     description: 'Hard-court grind in Tunisia.',
+    surface: 'hardcourt',
     prizes: [100, 250, 600],
   },
   {
@@ -98,6 +102,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'ITF Sharm El Sheikh 15K',
     tier: 'amateur',
     description: 'Desert heat and fast courts.',
+    surface: 'hardcourt',
     prizes: [120, 280, 650],
   },
   {
@@ -105,6 +110,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'ITF Antalya 15K',
     tier: 'amateur',
     description: 'Coastal wind and long rallies.',
+    surface: 'hardcourt',
     prizes: [120, 300, 700],
   },
   {
@@ -112,6 +118,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'ITF Santa Margherita 25K',
     tier: 'amateur',
     description: 'Clay court tests and tight margins.',
+    surface: 'clay',
     prizes: [150, 350, 800],
   },
   {
@@ -120,6 +127,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'pro',
     description: 'ATP 250 on fast hard courts.',
     image: '/tournaments/smalltournament.png',
+    surface: 'hardcourt',
     prizes: [500, 1200, 3000],
   },
   {
@@ -128,6 +136,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'pro',
     description: 'ATP 500 under the lights.',
     image: '/tournaments/smalltournament.png',
+    surface: 'hardcourt',
     prizes: [650, 1500, 3600],
   },
   {
@@ -136,6 +145,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'pro',
     description: 'Classic clay-court ATP 500.',
     image: '/tournaments/smalltournament.png',
+    surface: 'clay',
     prizes: [700, 1600, 3800],
   },
   {
@@ -144,6 +154,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'pro',
     description: 'Grass-court warmup in London.',
     image: '/tournaments/smalltournament.png',
+    surface: 'grass',
     prizes: [650, 1500, 3600],
   },
   {
@@ -152,6 +163,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'elite',
     description: 'Masters 1000 in the desert.',
     image: '/tournaments/hardcourt.png',
+    surface: 'hardcourt',
     prizes: [1500, 4000, 10000],
   },
   {
@@ -160,6 +172,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'elite',
     description: 'Sunshine Swing showdown.',
     image: '/tournaments/hardcourt.png',
+    surface: 'hardcourt',
     prizes: [1500, 4200, 10500],
   },
   {
@@ -168,6 +181,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'elite',
     description: 'Fast hard-court Masters 1000.',
     image: '/tournaments/hardcourt.png',
+    surface: 'hardcourt',
     prizes: [1600, 4500, 11000],
   },
   {
@@ -176,6 +190,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'elite',
     description: 'Clay-court Grand Slam in Paris.',
     image: '/tournaments/claycourt.png',
+    surface: 'clay',
     prizes: [2000, 6000, 15000],
   },
   {
@@ -184,6 +199,7 @@ const TOURNAMENTS: TournamentDef[] = [
     tier: 'elite',
     description: 'The Championships on grass.',
     image: '/tournaments/wimbledon.png',
+    surface: 'grass',
     prizes: [2000, 6000, 15000],
   },
 ];
@@ -330,6 +346,7 @@ const App: React.FC = () => {
       name: tournament.name,
       tier: tournament.tier,
       prizes: tournament.prizes,
+      surface: tournament.surface,
       status: 'active',
       rounds,
     };
@@ -393,6 +410,7 @@ const App: React.FC = () => {
         opponentName={tournamentState ? nextTournamentMatch?.player1 === 'You' ? nextTournamentMatch.player2 || 'Opponent' : nextTournamentMatch?.player1 || 'Opponent' : undefined}
         playerPortrait={playerPortrait}
         opponentPortrait={tournamentState ? nextTournamentMatch?.player1 === 'You' ? nextTournamentMatch.player2Portrait : nextTournamentMatch?.player1Portrait : undefined}
+        surface={tournamentState?.surface ?? 'grass'}
         playerName={playerName}
         onExit={() => setScreen(tournamentState ? 'tournaments' : 'player')}
         onMatchEnd={winner => {

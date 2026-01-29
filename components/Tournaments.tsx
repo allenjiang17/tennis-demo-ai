@@ -1,7 +1,7 @@
 import React from 'react';
+import { CourtSurface } from '../types';
 
 type TournamentTier = 'amateur' | 'pro' | 'elite';
-
 type TournamentDef = {
   id: string;
   name: string;
@@ -9,6 +9,7 @@ type TournamentDef = {
   description: string;
   prizes: number[];
   image?: string;
+  surface: CourtSurface;
 };
 
 type TournamentMatch = {
@@ -27,6 +28,7 @@ type TournamentState = {
   name: string;
   tier: TournamentTier;
   prizes: number[];
+  surface: CourtSurface;
   status: 'active' | 'eliminated' | 'champion';
   rounds: TournamentMatch[][];
 };
