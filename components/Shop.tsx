@@ -14,6 +14,8 @@ type ShopProps = {
   onSelectPortrait?: (id: string) => void;
   playerName?: string;
   onPlayerNameChange?: (name: string) => void;
+  rankingPoints?: number;
+  rankingRank?: number;
 };
 
 const typeLabel: Record<ShotType, string> = {
@@ -35,12 +37,17 @@ const tierStyles: Record<ShopItem['tier'], { bg: string; border: string; text: s
     border: 'border-emerald-400/40',
     text: 'text-emerald-300',
   },
+  legendary: {
+    bg: 'bg-purple-500/15',
+    border: 'border-purple-300/50',
+    text: 'text-purple-200',
+  },
   elite: {
     bg: 'bg-sky-500/15',
     border: 'border-sky-400/40',
     text: 'text-sky-300',
   },
-  legendary: {
+  unique: {
     bg: 'bg-[linear-gradient(135deg,rgba(253,230,138,0.28),rgba(250,204,21,0.2),rgba(161,98,7,0.35))] shadow-[inset_0_0_0_1px_rgba(254,243,199,0.4),inset_0_0_22px_rgba(250,204,21,0.25)]',
     border: 'border-yellow-300/70',
     text: 'text-yellow-200',
@@ -88,6 +95,8 @@ const Shop: React.FC<ShopProps> = ({
   onSelectPortrait,
   playerName,
   onPlayerNameChange,
+  rankingPoints,
+  rankingRank,
 }) => {
   const stats = buildStats(items, loadout);
   const [showPortraits, setShowPortraits] = useState(false);
@@ -137,6 +146,17 @@ const Shop: React.FC<ShopProps> = ({
                 Credits
               </div>
               <div className="text-2xl font-orbitron font-bold">{wallet}</div>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-right">
+              <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+                Ranking
+              </div>
+              <div className="text-sm font-orbitron font-bold text-emerald-200">
+                {rankingRank ? `#${rankingRank}` : '—'}
+              </div>
+              <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
+                {rankingPoints ?? 0} pts
+              </div>
             </div>
           </div>
         </div>
@@ -230,17 +250,19 @@ const Shop: React.FC<ShopProps> = ({
                         : loadout[shotType] === item.id;
                     const tierStyle = tierStyles[item.tier];
                     const selectedGlow =
-                      item.tier === 'legendary'
+                      item.tier === 'unique'
                         ? 'ring-1 ring-yellow-100/70 shadow-[0_0_40px_rgba(250,204,21,0.95),0_0_90px_rgba(255,220,120,0.6)]'
+                        : item.tier === 'legendary'
+                          ? 'ring-1 ring-purple-200/60 shadow-[0_0_24px_rgba(192,132,252,0.65)]'
                         : item.tier === 'elite'
                           ? 'ring-1 ring-sky-200/60 shadow-[0_0_24px_rgba(56,189,248,0.65)]'
                           : item.tier === 'pro'
                             ? 'ring-1 ring-emerald-200/60 shadow-[0_0_22px_rgba(16,185,129,0.6)]'
                             : 'ring-1 ring-slate-200/50 shadow-[0_0_20px_rgba(148,163,184,0.5)]';
-                    const tierGlowStyle = item.tier === 'legendary'
+                    const tierGlowStyle = item.tier === 'unique'
                       ? { animation: 'subtleGlow 6s ease-in-out infinite' }
                       : undefined;
-                    const equippedGlowStyle = equipped && item.tier === 'legendary'
+                    const equippedGlowStyle = equipped && item.tier === 'unique'
                       ? { boxShadow: '0 0 50px rgba(250,204,21,0.95), 0 0 110px rgba(255,220,120,0.7)' }
                       : undefined;
                     return (

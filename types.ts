@@ -61,7 +61,7 @@ export type ShopItem = {
   shot: ShotType;
   stats: ShotStats | VolleyStats | AthleticismStats;
   price: number;
-  tier: 'amateur' | 'pro' | 'elite' | 'legendary';
+  tier: 'amateur' | 'pro' | 'legendary' | 'elite' | 'unique';
   perk?: string;
   description?: string;
 };
@@ -91,3 +91,15 @@ export type AiProfile = {
 };
 
 export type CourtSurface = 'grass' | 'hardcourt' | 'clay';
+
+export type PlayerProfile = {
+  id: string;
+  name: string;
+  gender: 'male' | 'female';
+  portraitType: string;
+  portraitId?: string;
+  aiProfileId?: string;
+  rankingPoints: number;
+  loadout: Loadout;
+  minShotTier: ShopItem['tier'];
+};

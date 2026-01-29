@@ -1587,14 +1587,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
                 { label: 'Athleticism', id: rosterTarget.loadout.athleticism },
               ]).map(slot => {
                 const item = itemById.get(slot.id);
-                const tierStyle = item?.tier === 'legendary'
+                const tierStyle = item?.tier === 'unique'
                   ? 'border-yellow-300/70 bg-[linear-gradient(135deg,rgba(253,230,138,0.28),rgba(250,204,21,0.2),rgba(161,98,7,0.35))] shadow-[inset_0_0_0_1px_rgba(254,243,199,0.4),inset_0_0_22px_rgba(250,204,21,0.25)]'
+                  : item?.tier === 'legendary'
+                    ? 'border-purple-300/60 bg-purple-500/10'
                   : item?.tier === 'elite'
                     ? 'border-sky-400/60 bg-sky-500/10'
                     : item?.tier === 'pro'
                       ? 'border-emerald-400/60 bg-emerald-500/10'
                       : 'border-slate-400/50 bg-slate-500/10';
-                const tierGlowStyle = item?.tier === 'legendary'
+                const tierGlowStyle = item?.tier === 'unique'
                   ? { animation: 'subtleGlow 6s ease-in-out infinite' }
                   : undefined;
                 return (

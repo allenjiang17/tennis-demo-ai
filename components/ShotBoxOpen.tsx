@@ -14,13 +14,15 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
     setOpened(true);
   };
   const tierLabel = item.tier.toUpperCase();
-  const tierStyle = item.tier === 'legendary'
+  const tierStyle = item.tier === 'unique'
     ? 'border-yellow-200/90 bg-[linear-gradient(135deg,rgb(232,210,128),rgb(214,176,24),rgb(120,70,6))] shadow-[0_0_160px_rgba(250,204,21,0.9),0_0_80px_rgba(255,220,120,0.65),inset_0_0_0_1px_rgba(255,245,210,0.35),inset_0_0_24px_rgba(250,204,21,0.4)] text-yellow-50'
-    : item.tier === 'elite'
-      ? 'border-sky-300/70 bg-sky-500/25 shadow-[0_0_44px_rgba(56,189,248,0.45)] text-sky-100'
-    : item.tier === 'pro'
-        ? 'border-emerald-300/70 bg-[linear-gradient(135deg,rgb(55,110,92),rgb(32,78,65),rgb(14,54,44))] shadow-[0_0_32px_rgba(16,185,129,0.26)] text-emerald-100'
-        : 'border-slate-400/50 bg-slate-500/20 text-slate-200';
+    : item.tier === 'legendary'
+      ? 'border-purple-300/80 bg-[linear-gradient(135deg,rgb(126,34,206),rgb(88,28,135),rgb(59,7,100))] shadow-[0_0_60px_rgba(192,132,252,0.6)] text-purple-50'
+      : item.tier === 'elite'
+        ? 'border-sky-300/70 bg-sky-500/25 shadow-[0_0_44px_rgba(56,189,248,0.45)] text-sky-100'
+        : item.tier === 'pro'
+          ? 'border-emerald-300/70 bg-[linear-gradient(135deg,rgb(55,110,92),rgb(32,78,65),rgb(14,54,44))] shadow-[0_0_32px_rgba(16,185,129,0.26)] text-emerald-100'
+          : 'border-slate-400/50 bg-slate-500/20 text-slate-200';
 
   return (
     <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-hidden">
@@ -58,7 +60,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
             <div className="relative flex items-center justify-center">
               <div
                 className={`relative w-64 h-80 transition-transform duration-500 ease-out ${
-                  opened && item.tier === 'legendary' ? '-translate-x-28' : 'translate-x-0'
+                  opened && item.tier === 'unique' ? '-translate-x-28' : 'translate-x-0'
                 }`}
                 style={{ perspective: '1200px' }}
               >
@@ -104,7 +106,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
                   )}
                 </div>
                 </div>
-              {item.tier === 'legendary' && (
+              {item.tier === 'unique' && (
                 <div
                   className={`absolute left-full top-0 ml-8 hidden md:block transition-all duration-[1400ms] ${
                     opened
@@ -118,7 +120,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
                   <div className="relative h-80 w-56 overflow-hidden rounded-2xl border border-yellow-200/40 bg-black/30 shadow-[0_0_50px_rgba(250,204,21,0.75)]">
                     <img
                       src={`/shots/${item.id}.png`}
-                      alt="Legendary shot"
+                      alt="Unique shot"
                       className="h-full w-full object-cover"
                     />
                   </div>

@@ -3,14 +3,16 @@ import Game from './Game';
 import Shop from './components/Shop';
 import OpponentSelect from './components/OpponentSelect';
 import Menu from './components/Menu';
+import Rankings from './components/Rankings';
 import ShotShop from './components/ShotShop';
 import ShotBoxOpen from './components/ShotBoxOpen';
 import Tournaments from './components/Tournaments';
 import TournamentResult from './components/TournamentResult';
-import { AiProfile, CourtSurface, Loadout, PlayerStats, ShopItem, ShotType } from './types';
+import { AiProfile, CourtSurface, Loadout, PlayerProfile, PlayerStats, ShopItem, ShotType } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
 import { PORTRAITS } from './data/portraits';
+import { BASE_PLAYERS } from './data/players';
 
 const DEFAULT_LOADOUT: Loadout = {
   serveFirst: 'amateur-serve-1',
@@ -51,6 +53,11 @@ const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
 
 type DifficultyTier = 'amateur' | 'pro' | 'elite';
 
+type RankingGate = {
+  maxRank: number;
+  minPoints?: number;
+};
+
 type TournamentDef = {
   id: string;
   name: string;
@@ -59,18 +66,19 @@ type TournamentDef = {
   prizes: number[];
   image?: string;
   surface: CourtSurface;
+  rankingPoints: number[];
+  rankingGate: RankingGate;
 };
 
 type TournamentMatch = {
   id: string;
   round: number;
   slot: number;
-  player1: string | null;
-  player2: string | null;
-  player1Portrait?: string;
-  player2Portrait?: string;
-  winner: string | null;
+  player1Id: string | null;
+  player2Id: string | null;
+  winnerId: string | null;
   aiProfileId?: string;
+  rankingAwarded?: boolean;
 };
 
 type TournamentState = {
@@ -79,6 +87,8 @@ type TournamentState = {
   tier: DifficultyTier;
   prizes: number[];
   surface: CourtSurface;
+  rankingPoints: number[];
+  rankingGate: RankingGate;
   status: 'active' | 'eliminated' | 'champion';
   rounds: TournamentMatch[][];
 };
@@ -86,6 +96,22 @@ type TournamentResultState = {
   outcome: 'eliminated' | 'champion';
   tournamentName: string;
   earnings: number;
+};
+type RankingAward = {
+  playerId: string;
+  points: number;
+};
+
+const PLAYER_ID = 'player';
+const RANKING_POINTS_BY_TIER: Record<DifficultyTier, number[]> = {
+  amateur: [20, 50, 110],
+  pro: [80, 180, 360],
+  elite: [250, 600, 1400],
+};
+const RANKING_GATES_BY_TIER: Record<DifficultyTier, RankingGate> = {
+  amateur: { maxRank: 40 },
+  pro: { maxRank: 12 },
+  elite: { maxRank: 8 },
 };
 
 const TOURNAMENTS: TournamentDef[] = [
@@ -96,6 +122,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Hard-court grind in Tunisia.',
     surface: 'hardcourt',
     prizes: [100, 250, 600],
+    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_TIER.amateur,
   },
   {
     id: 'itf-sharm',
@@ -104,6 +132,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Desert heat and fast courts.',
     surface: 'hardcourt',
     prizes: [120, 280, 650],
+    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_TIER.amateur,
   },
   {
     id: 'itf-antalya',
@@ -112,6 +142,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Coastal wind and long rallies.',
     surface: 'hardcourt',
     prizes: [120, 300, 700],
+    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_TIER.amateur,
   },
   {
     id: 'itf-santa',
@@ -120,6 +152,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Clay court tests and tight margins.',
     surface: 'clay',
     prizes: [150, 350, 800],
+    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingGate: RANKING_GATES_BY_TIER.amateur,
   },
   {
     id: 'doha-250',
@@ -129,6 +163,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/smalltournament.png',
     surface: 'hardcourt',
     prizes: [500, 1200, 3000],
+    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_TIER.pro,
   },
   {
     id: 'acapulco-500',
@@ -138,6 +174,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/smalltournament.png',
     surface: 'hardcourt',
     prizes: [650, 1500, 3600],
+    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_TIER.pro,
   },
   {
     id: 'barcelona-500',
@@ -147,6 +185,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/smalltournament.png',
     surface: 'clay',
     prizes: [700, 1600, 3800],
+    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_TIER.pro,
   },
   {
     id: 'queens-500',
@@ -156,6 +196,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/smalltournament.png',
     surface: 'grass',
     prizes: [650, 1500, 3600],
+    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingGate: RANKING_GATES_BY_TIER.pro,
   },
   {
     id: 'indian-wells-1000',
@@ -165,6 +207,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
     prizes: [1500, 4000, 10000],
+    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_TIER.elite,
   },
   {
     id: 'miami-open',
@@ -174,6 +218,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
     prizes: [1500, 4200, 10500],
+    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_TIER.elite,
   },
   {
     id: 'shanghai-masters',
@@ -183,6 +229,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
     prizes: [1600, 4500, 11000],
+    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_TIER.elite,
   },
   {
     id: 'french-open',
@@ -192,6 +240,8 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/claycourt.png',
     surface: 'clay',
     prizes: [2000, 6000, 15000],
+    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_TIER.elite,
   },
   {
     id: 'wimbledon',
@@ -201,16 +251,40 @@ const TOURNAMENTS: TournamentDef[] = [
     image: '/tournaments/wimbledon.png',
     surface: 'grass',
     prizes: [2000, 6000, 15000],
+    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingGate: RANKING_GATES_BY_TIER.elite,
   },
 ];
 
-const TOURNAMENT_OPPONENTS = [
-  'Rublev', 'Pegula', 'Tsitsipas', 'Rybakina', 'Paolini', 'Jabeur', 'Rune', 'Keys',
-  'Khachanov', 'Sakkari', 'Zverev', 'Gauff', 'Paul', 'Mertens', 'Krejcikova', 'Pauline',
-];
+const createInitialPlayers = (): PlayerProfile[] => {
+  const fallbackPortraitId = PORTRAITS[0]?.id ?? '';
+  const portraitByType = new Map(PORTRAITS.map(portrait => [portrait.name, portrait]));
+  const basePlayers = BASE_PLAYERS.map((player, index) => {
+    const portrait = portraitByType.get(player.portraitType);
+    return {
+      ...player,
+      portraitId: portrait?.id ?? PORTRAITS[index % Math.max(PORTRAITS.length, 1)]?.id ?? fallbackPortraitId,
+      aiProfileId: AI_PROFILES[index % Math.max(AI_PROFILES.length, 1)]?.id,
+    };
+  });
+  const defaultPortrait = PORTRAITS[0];
+  return [
+    {
+      id: PLAYER_ID,
+      name: 'You',
+      gender: defaultPortrait?.gender ?? 'male',
+      portraitType: defaultPortrait?.name ?? 'Defensive Baseliner',
+      rankingPoints: 0,
+      minShotTier: 'amateur',
+      loadout: DEFAULT_LOADOUT,
+      portraitId: fallbackPortraitId,
+    },
+    ...basePlayers,
+  ];
+};
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings'>('menu');
   const [wallet, setWallet] = useState(5000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
     new Set(['amateur-serve-1', 'amateur-forehand-1', 'amateur-backhand-1', 'amateur-volley-1', 'amateur-athleticism-1'])
@@ -222,8 +296,7 @@ const App: React.FC = () => {
   const [pendingTournamentMatchId, setPendingTournamentMatchId] = useState<string | null>(null);
   const [tournamentEarnings, setTournamentEarnings] = useState(0);
   const [tournamentResult, setTournamentResult] = useState<TournamentResultState | null>(null);
-  const [playerPortraitId, setPlayerPortraitId] = useState(PORTRAITS[0]?.id ?? '');
-  const [playerName, setPlayerName] = useState('You');
+  const [players, setPlayers] = useState<PlayerProfile[]>(createInitialPlayers);
   const [pendingBox, setPendingBox] = useState<{ item: ShopItem; alreadyOwned: boolean } | null>(null);
 
   const boxPrices: Record<ShotType, number> = {
@@ -233,6 +306,28 @@ const App: React.FC = () => {
     volley: 350,
     athleticism: 350,
   };
+  const playersById = useMemo(
+    () => new Map(players.map(player => [player.id, player])),
+    [players]
+  );
+  const rankedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
+      return a.name.localeCompare(b.name);
+    });
+  }, [players]);
+  const rankingsById = useMemo(() => {
+    const map = new Map<string, number>();
+    rankedPlayers.forEach((player, index) => {
+      map.set(player.id, index + 1);
+    });
+    return map;
+  }, [rankedPlayers]);
+  const playerProfile = playersById.get(PLAYER_ID);
+  const playerName = playerProfile?.name ?? 'You';
+  const playerPortraitId = playerProfile?.portraitId ?? PORTRAITS[0]?.id ?? '';
+  const playerRank = rankingsById.get(PLAYER_ID) ?? rankedPlayers.length;
+  const playerPoints = playerProfile?.rankingPoints ?? 0;
 
   const buildTieredLoadout = useMemo(() => {
     const byId = new Map(SHOP_ITEMS.map(item => [item.id, item]));
@@ -271,9 +366,10 @@ const App: React.FC = () => {
   const rollTier = (): ShopItem['tier'] => {
     const roll = Math.random() * 100;
     if (roll < 40) return 'amateur';
-    if (roll < 75) return 'pro';
-    if (roll < 95) return 'elite';
-    return 'legendary';
+    if (roll < 70) return 'pro';
+    if (roll < 90) return 'legendary';
+    if (roll < 98) return 'elite';
+    return 'unique';
   };
 
   const pickRandomItem = (shot: ShotType): ShopItem | null => {
@@ -300,22 +396,86 @@ const App: React.FC = () => {
     setLoadout(prev => ({ ...prev, [slot]: item.id }));
   };
 
-  const createTournamentState = (tournament: TournamentDef): TournamentState => {
-    const pool = [...TOURNAMENT_OPPONENTS];
-    const pickOpponent = () => pool.splice(Math.floor(Math.random() * pool.length), 1)[0] || 'Challenger';
-    const players = ['You', pickOpponent(), pickOpponent(), pickOpponent(), pickOpponent(), pickOpponent(), pickOpponent(), pickOpponent()];
-    const portraitPool = [...PORTRAITS.map(p => p.src)];
-    const takePortrait = () => portraitPool.splice(Math.floor(Math.random() * portraitPool.length), 1)[0] || PORTRAITS[0]?.src || '';
-    const portraitsByPlayer = new Map<string, string>();
-    players.forEach(player => {
-      portraitsByPlayer.set(
-        player,
-        player === 'You' ? (PORTRAITS.find(p => p.id === playerPortraitId)?.src || '') : takePortrait()
-      );
+  const updatePlayerProfile = (playerId: string, updates: Partial<PlayerProfile>) => {
+    setPlayers(prev => prev.map(player => (player.id === playerId ? { ...player, ...updates } : player)));
+  };
+
+  const applyRankingAwards = (awards: RankingAward[]) => {
+    if (awards.length === 0) return;
+    setPlayers(prev => {
+      const awardTotals = new Map<string, number>();
+      awards.forEach(({ playerId, points }) => {
+        awardTotals.set(playerId, (awardTotals.get(playerId) || 0) + points);
+      });
+      return prev.map(player => {
+        const delta = awardTotals.get(player.id);
+        if (!delta) return player;
+        return { ...player, rankingPoints: player.rankingPoints + delta };
+      });
     });
-    for (let i = players.length - 1; i > 0; i -= 1) {
+  };
+
+  const getPlayerPortraitSrc = (playerId: string | null) => {
+    if (!playerId) return '';
+    const portraitId = playersById.get(playerId)?.portraitId;
+    return PORTRAITS.find(p => p.id === portraitId)?.src || '';
+  };
+
+  const isPlayerEligibleForTournament = (tournament: TournamentDef, playerId: string) => {
+    const rank = rankingsById.get(playerId) ?? Number.POSITIVE_INFINITY;
+    if (rank > tournament.rankingGate.maxRank) return false;
+    if (tournament.rankingGate.minPoints !== undefined) {
+      const points = playersById.get(playerId)?.rankingPoints ?? 0;
+      if (points < tournament.rankingGate.minPoints) return false;
+    }
+    return true;
+  };
+
+  const getEligiblePlayersForTournament = (tournament: TournamentDef) => {
+    return players.filter(player => isPlayerEligibleForTournament(tournament, player.id));
+  };
+
+  const collectRankingAwards = (state: TournamentState): RankingAward[] => {
+    const awards: RankingAward[] = [];
+    state.rounds.forEach(round => {
+      round.forEach(match => {
+        if (!match.winnerId || match.rankingAwarded) return;
+        const points = state.rankingPoints[match.round - 1] ?? 0;
+        if (points > 0) {
+          awards.push({ playerId: match.winnerId, points });
+        }
+        match.rankingAwarded = true;
+      });
+    });
+    return awards;
+  };
+
+  const createTournamentState = (tournament: TournamentDef) => {
+    const eligiblePlayers = getEligiblePlayersForTournament(tournament);
+    const sortedEligible = [...eligiblePlayers].sort((a, b) => {
+      if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
+      return a.name.localeCompare(b.name);
+    });
+    let participants = sortedEligible.slice(0, 8);
+    const playerIsEligible = eligiblePlayers.some(player => player.id === PLAYER_ID);
+    if (playerIsEligible && !participants.some(player => player.id === PLAYER_ID)) {
+      participants[participants.length - 1] = playersById.get(PLAYER_ID) || participants[participants.length - 1];
+    }
+    if (participants.length < 8) {
+      const remaining = [...players]
+        .filter(player => !participants.some(existing => existing.id === player.id))
+        .sort((a, b) => {
+          if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
+          return a.name.localeCompare(b.name);
+        });
+      while (participants.length < 8 && remaining.length > 0) {
+        const next = remaining.shift();
+        if (next) participants.push(next);
+      }
+    }
+    for (let i = participants.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
-      [players[i], players[j]] = [players[j], players[i]];
+      [participants[i], participants[j]] = [participants[j], participants[i]];
     }
     const rounds: TournamentMatch[][] = [
       [],
@@ -323,45 +483,54 @@ const App: React.FC = () => {
       [],
     ];
     for (let i = 0; i < 4; i += 1) {
-      const p1 = players[i * 2];
-      const p2 = players[i * 2 + 1];
+      const p1 = participants[i * 2];
+      const p2 = participants[i * 2 + 1];
+      const player1Id = p1?.id ?? null;
+      const player2Id = p2?.id ?? null;
+      let aiProfileId: string | undefined;
+      if (player1Id === PLAYER_ID || player2Id === PLAYER_ID) {
+        const opponentId = player1Id === PLAYER_ID ? player2Id : player1Id;
+        aiProfileId = opponentId ? (playersById.get(opponentId)?.aiProfileId || AI_PROFILES[0]?.id) : AI_PROFILES[0]?.id;
+      }
       rounds[0].push({
         id: `qf-${i}`,
         round: 1,
         slot: i,
-        player1: p1,
-        player2: p2,
-        player1Portrait: portraitsByPlayer.get(p1) || '',
-        player2Portrait: portraitsByPlayer.get(p2) || '',
-        winner: null,
-        aiProfileId: p1 === 'You' || p2 === 'You' ? AI_PROFILES[Math.floor(Math.random() * AI_PROFILES.length)].id : undefined,
+        player1Id,
+        player2Id,
+        winnerId: null,
+        aiProfileId,
+        rankingAwarded: false,
       });
     }
     for (let i = 0; i < 2; i += 1) {
-      rounds[1].push({ id: `sf-${i}`, round: 2, slot: i, player1: null, player2: null, winner: null });
+      rounds[1].push({ id: `sf-${i}`, round: 2, slot: i, player1Id: null, player2Id: null, winnerId: null, rankingAwarded: false });
     }
-    rounds[2].push({ id: 'final', round: 3, slot: 0, player1: null, player2: null, winner: null });
+    rounds[2].push({ id: 'final', round: 3, slot: 0, player1Id: null, player2Id: null, winnerId: null, rankingAwarded: false });
     const state: TournamentState = {
       id: tournament.id,
       name: tournament.name,
       tier: tournament.tier,
       prizes: tournament.prizes,
       surface: tournament.surface,
+      rankingPoints: tournament.rankingPoints,
+      rankingGate: tournament.rankingGate,
       status: 'active',
       rounds,
     };
     resolveNonPlayerMatches(state, 0);
     propagateWinners(state, 0);
-    return state;
+    const awards = collectRankingAwards(state);
+    return { state, awards };
   };
 
   const resolveNonPlayerMatches = (state: TournamentState, roundIndex: number) => {
     const round = state.rounds[roundIndex];
     round.forEach(match => {
-      if (match.winner) return;
-      if (match.player1 === 'You' || match.player2 === 'You') return;
-      if (!match.player1 || !match.player2) return;
-      match.winner = Math.random() > 0.5 ? match.player1 : match.player2;
+      if (match.winnerId) return;
+      if (match.player1Id === PLAYER_ID || match.player2Id === PLAYER_ID) return;
+      if (!match.player1Id || !match.player2Id) return;
+      match.winnerId = Math.random() > 0.5 ? match.player1Id : match.player2Id;
     });
   };
 
@@ -371,10 +540,13 @@ const App: React.FC = () => {
     for (let i = 0; i < nextRound.length; i += 1) {
       const leftMatch = state.rounds[roundIndex][i * 2];
       const rightMatch = state.rounds[roundIndex][i * 2 + 1];
-      nextRound[i].player1 = leftMatch?.winner || null;
-      nextRound[i].player2 = rightMatch?.winner || null;
-      if ((nextRound[i].player1 === 'You' || nextRound[i].player2 === 'You') && !nextRound[i].aiProfileId) {
-        nextRound[i].aiProfileId = AI_PROFILES[Math.floor(Math.random() * AI_PROFILES.length)].id;
+      nextRound[i].player1Id = leftMatch?.winnerId || null;
+      nextRound[i].player2Id = rightMatch?.winnerId || null;
+      if ((nextRound[i].player1Id === PLAYER_ID || nextRound[i].player2Id === PLAYER_ID) && !nextRound[i].aiProfileId) {
+        const opponentId = nextRound[i].player1Id === PLAYER_ID ? nextRound[i].player2Id : nextRound[i].player1Id;
+        nextRound[i].aiProfileId = opponentId ? (playersById.get(opponentId)?.aiProfileId || AI_PROFILES[0]?.id) : AI_PROFILES[0]?.id;
+      } else if (nextRound[i].player1Id !== PLAYER_ID && nextRound[i].player2Id !== PLAYER_ID) {
+        nextRound[i].aiProfileId = undefined;
       }
     }
   };
@@ -382,7 +554,7 @@ const App: React.FC = () => {
   const getNextPlayerMatch = (state: TournamentState | null): TournamentMatch | null => {
     if (!state || state.status !== 'active') return null;
     for (let roundIndex = 0; roundIndex < state.rounds.length; roundIndex += 1) {
-      const match = state.rounds[roundIndex].find(m => (m.player1 === 'You' || m.player2 === 'You') && !m.winner);
+      const match = state.rounds[roundIndex].find(m => (m.player1Id === PLAYER_ID || m.player2Id === PLAYER_ID) && !m.winnerId);
       if (match) return match;
     }
     return null;
@@ -392,10 +564,18 @@ const App: React.FC = () => {
     () => getNextPlayerMatch(tournamentState),
     [tournamentState]
   );
+  const nextOpponentId = useMemo(() => {
+    if (!nextTournamentMatch) return null;
+    if (nextTournamentMatch.player1Id === PLAYER_ID) return nextTournamentMatch.player2Id;
+    if (nextTournamentMatch.player2Id === PLAYER_ID) return nextTournamentMatch.player1Id;
+    return null;
+  }, [nextTournamentMatch]);
+  const nextOpponentName = nextOpponentId ? playersById.get(nextOpponentId)?.name : undefined;
+  const nextOpponentPortrait = nextOpponentId ? getPlayerPortraitSrc(nextOpponentId) : undefined;
 
   const playerPortrait = useMemo(
-    () => PORTRAITS.find(p => p.id === playerPortraitId)?.src,
-    [playerPortraitId]
+    () => getPlayerPortraitSrc(PLAYER_ID),
+    [playersById]
   );
 
   if (screen === 'game') {
@@ -407,9 +587,9 @@ const App: React.FC = () => {
         playerLoadout={loadout}
         aiLoadout={buildTieredLoadout(selectedAi, difficulty)}
         shopItems={SHOP_ITEMS}
-        opponentName={tournamentState ? nextTournamentMatch?.player1 === 'You' ? nextTournamentMatch.player2 || 'Opponent' : nextTournamentMatch?.player1 || 'Opponent' : undefined}
+        opponentName={tournamentState ? nextOpponentName || 'Opponent' : undefined}
         playerPortrait={playerPortrait}
-        opponentPortrait={tournamentState ? nextTournamentMatch?.player1 === 'You' ? nextTournamentMatch.player2Portrait : nextTournamentMatch?.player1Portrait : undefined}
+        opponentPortrait={tournamentState ? nextOpponentPortrait : undefined}
         surface={tournamentState?.surface ?? 'grass'}
         playerName={playerName}
         onExit={() => setScreen(tournamentState ? 'tournaments' : 'player')}
@@ -419,6 +599,7 @@ const App: React.FC = () => {
             return;
           }
           let resultToShow: TournamentResultState | null = null;
+          let rankingAwards: RankingAward[] = [];
           setTournamentState(prev => {
             if (!prev) return prev;
             const updated: TournamentState = {
@@ -427,7 +608,11 @@ const App: React.FC = () => {
             };
             const match = updated.rounds.flat().find(m => m.id === pendingTournamentMatchId);
             if (!match) return prev;
-            match.winner = winner === 'player' ? 'You' : (match.player1 === 'You' ? match.player2 : match.player1) || 'Opponent';
+            if (winner === 'player') {
+              match.winnerId = PLAYER_ID;
+            } else {
+              match.winnerId = match.player1Id === PLAYER_ID ? match.player2Id : match.player1Id;
+            }
             if (winner === 'player') {
               const prize = updated.prizes[match.round - 1];
               setWallet(prevWallet => prevWallet + prize);
@@ -437,7 +622,13 @@ const App: React.FC = () => {
             }
             resolveNonPlayerMatches(updated, match.round - 1);
             propagateWinners(updated, match.round - 1);
-            if (updated.rounds[2][0].winner === 'You') updated.status = 'champion';
+            if (updated.status === 'eliminated') {
+              for (let roundIndex = match.round; roundIndex < updated.rounds.length; roundIndex += 1) {
+                resolveNonPlayerMatches(updated, roundIndex);
+                propagateWinners(updated, roundIndex);
+              }
+            }
+            if (updated.rounds[2][0].winnerId === PLAYER_ID) updated.status = 'champion';
             if (updated.status !== 'active') {
               const addedPrize = winner === 'player' ? updated.prizes[match.round - 1] : 0;
               resultToShow = {
@@ -446,8 +637,10 @@ const App: React.FC = () => {
                 earnings: tournamentEarnings + addedPrize,
               };
             }
+            rankingAwards = collectRankingAwards(updated);
             return updated;
           });
+          applyRankingAwards(rankingAwards);
           if (resultToShow) {
             setTournamentResult(resultToShow);
             setTournamentState(null);
@@ -484,11 +677,17 @@ const App: React.FC = () => {
         tournaments={TOURNAMENTS}
         tournamentState={tournamentState}
         nextMatchId={nextTournamentMatch?.id || null}
+        players={players}
+        playerRank={playerRank}
+        playerPoints={playerPoints}
         onSelectTournament={tournamentId => {
           const tournament = TOURNAMENTS.find(t => t.id === tournamentId);
           if (!tournament) return;
+          if (!isPlayerEligibleForTournament(tournament, PLAYER_ID)) return;
           setTournamentEarnings(0);
-          setTournamentState(createTournamentState(tournament));
+          const { state, awards } = createTournamentState(tournament);
+          setTournamentState(state);
+          applyRankingAwards(awards);
         }}
         onPlayMatch={matchId => {
           if (!tournamentState) return;
@@ -524,6 +723,15 @@ const App: React.FC = () => {
     );
   }
 
+  if (screen === 'rankings') {
+    return (
+      <Rankings
+        players={players}
+        onBack={() => setScreen('menu')}
+      />
+    );
+  }
+
   if (screen === 'player') {
     return (
       <Shop
@@ -536,9 +744,18 @@ const App: React.FC = () => {
         onBack={() => setScreen('menu')}
         portraits={PORTRAITS}
         selectedPortraitId={playerPortraitId}
-        onSelectPortrait={setPlayerPortraitId}
+        onSelectPortrait={id => {
+          const portrait = PORTRAITS.find(item => item.id === id);
+          updatePlayerProfile(PLAYER_ID, {
+            portraitId: id,
+            gender: portrait?.gender ?? (playerProfile?.gender || 'male'),
+            portraitType: portrait?.name ?? (playerProfile?.portraitType || 'Defensive Baseliner'),
+          });
+        }}
         playerName={playerName}
-        onPlayerNameChange={setPlayerName}
+        onPlayerNameChange={name => updatePlayerProfile(PLAYER_ID, { name })}
+        rankingPoints={playerPoints}
+        rankingRank={playerRank}
       />
     );
   }
@@ -579,6 +796,7 @@ const App: React.FC = () => {
       onShotShop={() => setScreen('shot-shop')}
       onChallenge={() => setScreen('opponent')}
       onTournaments={() => setScreen('tournaments')}
+      onRankings={() => setScreen('rankings')}
     />
   );
 };

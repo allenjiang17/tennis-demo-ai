@@ -5,9 +5,10 @@ type MenuProps = {
   onShotShop: () => void;
   onChallenge: () => void;
   onTournaments: () => void;
+  onRankings: () => void;
 };
 
-const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTournaments }) => (
+const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTournaments, onRankings }) => (
   <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
     <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
     <div className="relative z-10 max-w-4xl mx-auto px-8 py-16 min-h-full flex flex-col items-center justify-center">
@@ -18,11 +19,11 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
         </p>
       </div>
 
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6 w-full">
+      <div className="mt-12 flex flex-wrap gap-6 w-full justify-center">
         <button
           type="button"
           onClick={onPlayerPage}
-          className="rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
+          className="w-full md:w-[240px] rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
         >
           <div className="text-sm font-orbitron uppercase tracking-widest">Player Page</div>
           <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
@@ -32,7 +33,7 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
         <button
           type="button"
           onClick={onShotShop}
-          className="rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
+          className="w-full md:w-[240px] rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
         >
           <div className="text-sm font-orbitron uppercase tracking-widest">Shot Shop</div>
           <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
@@ -42,7 +43,7 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
         <button
           type="button"
           onClick={onChallenge}
-          className="rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
+          className="w-full md:w-[240px] rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
         >
           <div className="text-sm font-orbitron uppercase tracking-widest">Challenge Match</div>
           <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
@@ -52,11 +53,21 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
         <button
           type="button"
           onClick={onTournaments}
-          className="rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
+          className="w-full md:w-[240px] rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
         >
           <div className="text-sm font-orbitron uppercase tracking-widest">Tournaments</div>
           <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
             Climb brackets and earn bigger prizes.
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={onRankings}
+          className="w-full md:w-[240px] rounded-2xl border border-white/10 bg-white/5 px-6 py-6 text-left hover:bg-white/10 transition-all"
+        >
+          <div className="text-sm font-orbitron uppercase tracking-widest">Rankings</div>
+          <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
+            See the full player leaderboard.
           </div>
         </button>
       </div>

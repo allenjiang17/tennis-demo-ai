@@ -1,5 +1,6 @@
 import React from 'react';
-import { CourtSurface } from '../types';
+import { CourtSurface, PlayerProfile } from '../types';
+import { PORTRAITS } from '../data/portraits';
 
 type TournamentTier = 'amateur' | 'pro' | 'elite';
 type TournamentDef = {
@@ -10,17 +11,17 @@ type TournamentDef = {
   prizes: number[];
   image?: string;
   surface: CourtSurface;
+  rankingPoints: number[];
+  rankingGate: { maxRank: number; minPoints?: number };
 };
 
 type TournamentMatch = {
   id: string;
   round: number;
   slot: number;
-  player1: string | null;
-  player2: string | null;
-  player1Portrait?: string;
-  player2Portrait?: string;
-  winner: string | null;
+  player1Id: string | null;
+  player2Id: string | null;
+  winnerId: string | null;
 };
 
 type TournamentState = {
@@ -37,6 +38,9 @@ type TournamentsProps = {
   tournaments: TournamentDef[];
   tournamentState: TournamentState | null;
   nextMatchId: string | null;
+  players: PlayerProfile[];
+  playerRank: number;
+  playerPoints: number;
   onSelectTournament: (tournamentId: string) => void;
   onPlayMatch: (matchId: string) => void;
   onExitTournament: () => void;
@@ -66,29 +70,68 @@ const Tournaments: React.FC<TournamentsProps> = ({
   tournaments,
   tournamentState,
   nextMatchId,
+  players,
+  playerRank,
+  playerPoints,
   onSelectTournament,
   onPlayMatch,
   onExitTournament,
   onBack,
-}) => (
-  <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
-    <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
-    <div className="relative z-10 max-w-6xl mx-auto px-8 py-10 pb-20 min-h-full">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">ACE MASTER</h1>
-          <p className="text-xs font-orbitron uppercase tracking-widest text-slate-400 mt-2">
-            Tournaments
-          </p>
+}) => {
+  const playersById = new Map(players.map(player => [player.id, player]));
+  const resolvePlayerId = (playerId: string | null) => {
+    if (!playerId) return null;
+    if (playersById.has(playerId)) return playerId;
+    const matchByName = players.find(
+      player => player.name.toLowerCase() === playerId.toLowerCase()
+    );
+    return matchByName?.id ?? null;
+  };
+  const getPlayerName = (playerId: string | null) => {
+    if (!playerId) return 'TBD';
+    const resolvedId = resolvePlayerId(playerId);
+    if (resolvedId) return playersById.get(resolvedId)?.name || playerId;
+    return playerId;
+  };
+  const getPlayerPortrait = (playerId: string | null) => {
+    if (!playerId) return '';
+    const resolvedId = resolvePlayerId(playerId);
+    const portraitId = resolvedId ? playersById.get(resolvedId)?.portraitId : undefined;
+    return PORTRAITS.find(p => p.id === portraitId)?.src || '';
+  };
+  const isEligible = (tournament: TournamentDef) => {
+    if (playerRank > tournament.rankingGate.maxRank) return false;
+    if (tournament.rankingGate.minPoints !== undefined && playerPoints < tournament.rankingGate.minPoints) {
+      return false;
+    }
+    return true;
+  };
+
+  return (
+    <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
+      <div className="relative z-10 max-w-6xl mx-auto px-8 py-10 pb-20 min-h-full">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">ACE MASTER</h1>
+            <p className="text-xs font-orbitron uppercase tracking-widest text-slate-400 mt-2">
+              Tournaments
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-right">
+              <div className="text-[9px] uppercase tracking-widest text-slate-400">Your Rank</div>
+              <div className="text-sm font-orbitron font-bold">#{playerRank}</div>
+            </div>
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+            >
+              Back To Menu
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
-        >
-          Back To Menu
-        </button>
-      </div>
 
       {!tournamentState ? (
         <div className="mt-10 space-y-10">
@@ -104,6 +147,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {tierTournaments.map(tournament => {
                     const style = tierStyles[tournament.tier];
+                    const eligible = isEligible(tournament);
                     return (
                       <div
                         key={tournament.id}
@@ -131,10 +175,26 @@ const Tournaments: React.FC<TournamentsProps> = ({
                             </div>
                           ))}
                         </div>
+                        <div className="mt-4 text-[9px] uppercase tracking-widest text-slate-400">
+                          Entry: Top {tournament.rankingGate.maxRank}
+                          {tournament.rankingGate.minPoints !== undefined
+                            ? ` • ${tournament.rankingGate.minPoints}+ pts`
+                            : ''}
+                        </div>
+                        {!eligible && (
+                          <div className="mt-2 text-[9px] uppercase tracking-widest text-rose-300">
+                            Rank too low to enter
+                          </div>
+                        )}
                         <button
                           type="button"
+                          disabled={!eligible}
                           onClick={() => onSelectTournament(tournament.id)}
-                          className="mt-5 w-full px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/90 hover:bg-white/20 transition-all"
+                          className={`mt-5 w-full px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 transition-all ${
+                            eligible
+                              ? 'bg-white/10 text-white/90 hover:bg-white/20'
+                              : 'bg-white/5 text-white/40 cursor-not-allowed'
+                          }`}
                         >
                           Enter Tournament
                         </button>
@@ -187,34 +247,34 @@ const Tournaments: React.FC<TournamentsProps> = ({
                   <div
                     key={match.id}
                     className={`rounded-2xl border px-4 py-3 text-[10px] uppercase tracking-widest ${
-                      match.winner === 'You' ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200' : 'border-white/10 bg-white/5 text-slate-300'
+                      match.winnerId === 'player' ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200' : 'border-white/10 bg-white/5 text-slate-300'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2">
-                        {match.player1Portrait && (
+                        {getPlayerPortrait(match.player1Id) && (
                           <img
-                            src={match.player1Portrait}
-                            alt={match.player1 || 'Player'}
+                            src={getPlayerPortrait(match.player1Id)}
+                            alt={getPlayerName(match.player1Id)}
                             className="w-6 h-6 rounded-full object-cover border border-white/10"
                           />
                         )}
-                        {match.player1 || 'TBD'}
+                        {getPlayerName(match.player1Id)}
                       </span>
                       <span className="text-[9px] text-slate-400">vs</span>
                       <span className="flex items-center gap-2">
-                        {match.player2Portrait && (
+                        {getPlayerPortrait(match.player2Id) && (
                           <img
-                            src={match.player2Portrait}
-                            alt={match.player2 || 'Player'}
+                            src={getPlayerPortrait(match.player2Id)}
+                            alt={getPlayerName(match.player2Id)}
                             className="w-6 h-6 rounded-full object-cover border border-white/10"
                           />
                         )}
-                        {match.player2 || 'TBD'}
+                        {getPlayerName(match.player2Id)}
                       </span>
                     </div>
                     <div className="mt-2 text-[9px] uppercase tracking-widest text-slate-400">
-                      Winner: {match.winner || '—'}
+                      Winner: {match.winnerId ? getPlayerName(match.winnerId) : '—'}
                     </div>
                   </div>
                 ))}
@@ -226,5 +286,6 @@ const Tournaments: React.FC<TournamentsProps> = ({
     </div>
   </div>
 );
+}
 
 export default Tournaments;

@@ -61,7 +61,7 @@ const ShotShop: React.FC<ShotShopProps> = ({
       </div>
 
       <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 px-6 py-5 text-[10px] uppercase tracking-widest text-slate-300">
-        Odds per card: Amateur 40% • Pro 30% • Elite 20% • Legendary 10%
+        Odds per card: Amateur 40% • Pro 30% • Legendary 20% • Elite 8% • Unique 2%
       </div>
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
