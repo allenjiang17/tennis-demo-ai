@@ -832,133 +832,76 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       }
       const aiCheckX = isDropShot ? dropStopX : contactX;
       const aiCheckY = isDropShot ? dropStopY : contactY;
-      const aiNow = currentAiPosRef.current;
-      const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
-      const aiStroke = aiCheckX < aiNow.x ? 'BH' : 'FH';
-      const aiHitRadius = aiStroke === 'FH' ? aiHitRadiusFH : aiHitRadiusBH;
-      const aiSpeed = getAiSpeed();
-      const aiTravelMs = aiSpeed > 0 ? (aiDistFromBall / aiSpeed) * (1000 / 60) : Number.POSITIVE_INFINITY;
-      const timeToContactMs = getPostBounceDuration(
+      const postTarget = { x: aiCheckX, y: aiCheckY };
+      const postDuration = getPostBounceDuration(
         preStart,
         preEnd,
         hitSpeed,
         { x: bounceX, y: aiBounceY },
-        { x: aiCheckX, y: aiCheckY }
+        postTarget
       );
-      const canReach = aiDistFromBall < aiHitRadius || aiTravelMs <= timeToContactMs;
-      const missFalloff = 40;
-      const baseMiss = 0.1;
-      const missScale = 0.8;
-      const distanceFactor = Math.max(0, aiDistFromBall - aiHitRadius) / missFalloff;
-      const aiMissChance = canReach ? 0.02 : Math.min(0.9, baseMiss + distanceFactor * missScale);
 
-      if (!canReach && isDropShot) {
-        triggerFeedback("DROPSHOT WINNER! 🏆", 600);
-        const stopDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: dropStopX, y: dropStopY });
-        shotStartTimeRef.current = performance.now();
-        setBallTimingFunction(POST_BOUNCE_TIMING);
-        shotDurationRef.current = stopDuration;
-        shotStartPosRef.current = { x: bounceX, y: aiBounceY };
-        shotEndPosRef.current = { x: dropStopX, y: dropStopY };
-        setCurrentAnimDuration(stopDuration);
-        setBallPos({ x: dropStopX, y: dropStopY });
+      shotStartTimeRef.current = performance.now();
+      setBallTimingFunction(POST_BOUNCE_TIMING);
+      shotDurationRef.current = postDuration;
+      shotStartPosRef.current = { x: bounceX, y: aiBounceY };
+      shotEndPosRef.current = postTarget;
+      setCurrentAnimDuration(postDuration);
+      setBallPos(postTarget);
 
-        if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-        ballTimeoutRef.current = setTimeout(() => {
-          resetPoint('player');
-        }, stopDuration);
-        return;
-      }
+      if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+      ballTimeoutRef.current = setTimeout(() => {
+        const aiNow = currentAiPosRef.current;
+        const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
+        const aiStroke = aiCheckX < aiNow.x ? 'BH' : 'FH';
+        const aiHitRadius = aiStroke === 'FH' ? aiHitRadiusFH : aiHitRadiusBH;
+        const inRange = aiDistFromBall < aiHitRadius;
+        const missChance = inRange ? 0.02 : 1;
 
-      if (!canReach) {
-        triggerFeedback("WINNER! 🏆", 600);
-        setAiRunTarget(null);
-        const outY = -24;
-        const outX = extendShotToY(preStart, preEnd, outY);
-        shotStartTimeRef.current = performance.now();
-        const postBounceDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: outX, y: outY });
-        setBallTimingFunction(POST_BOUNCE_TIMING);
-        shotDurationRef.current = postBounceDuration;
-        shotStartPosRef.current = { x: bounceX, y: aiBounceY };
-        shotEndPosRef.current = { x: outX, y: outY };
-        setCurrentAnimDuration(postBounceDuration);
-        setBallPos({ x: outX, y: outY });
-
-        if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-        ballTimeoutRef.current = setTimeout(() => {
-          resetPoint('player');
-        }, postBounceDuration);
-        return;
-      }
-
-      if (Math.random() < aiMissChance) {
-        triggerFeedback("MISSED!", 600);
-        setAiRunTarget(null);
         if (isDropShot) {
-          const stopDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: dropStopX, y: dropStopY });
-          shotStartTimeRef.current = performance.now();
-          setBallTimingFunction(POST_BOUNCE_TIMING);
-          shotDurationRef.current = stopDuration;
-          shotStartPosRef.current = { x: bounceX, y: aiBounceY };
-          shotEndPosRef.current = { x: dropStopX, y: dropStopY };
-          setCurrentAnimDuration(stopDuration);
-          setBallPos({ x: dropStopX, y: dropStopY });
+          if (!inRange || Math.random() < missChance) {
+            triggerFeedback("DROPSHOT WINNER! 🏆", 600);
+            setAiRunTarget(null);
+            ballTimeoutRef.current = setTimeout(() => {
+              resetPoint('player');
+            }, 600);
+            return;
+          }
+          setAiRunTarget(null);
+          startAiShot({ x: dropStopX, y: dropStopY });
+          return;
+        }
 
-          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
-            resetPoint('player');
-          }, stopDuration);
-        } else {
+        if (!inRange || Math.random() < missChance) {
+          triggerFeedback(inRange ? "MISSED!" : "WINNER! 🏆", 600);
+          setAiRunTarget(null);
           const outY = -24;
           const outX = extendShotToY(preStart, preEnd, outY);
+          const outDuration = getPostBounceDuration(
+            preStart,
+            preEnd,
+            hitSpeed,
+            postTarget,
+            { x: outX, y: outY }
+          );
           shotStartTimeRef.current = performance.now();
-          const postBounceDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: outX, y: outY });
           setBallTimingFunction(POST_BOUNCE_TIMING);
-          shotDurationRef.current = postBounceDuration;
-          shotStartPosRef.current = { x: bounceX, y: aiBounceY };
+          shotDurationRef.current = outDuration;
+          shotStartPosRef.current = postTarget;
           shotEndPosRef.current = { x: outX, y: outY };
-          setCurrentAnimDuration(postBounceDuration);
+          setCurrentAnimDuration(outDuration);
           setBallPos({ x: outX, y: outY });
 
           if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
           ballTimeoutRef.current = setTimeout(() => {
             resetPoint('player');
-          }, postBounceDuration);
+          }, outDuration);
+          return;
         }
-      } else {
+
         setAiRunTarget(null);
-        if (isDropShot) {
-          const stopDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: dropStopX, y: dropStopY });
-
-          shotStartTimeRef.current = performance.now();
-          setBallTimingFunction(POST_BOUNCE_TIMING);
-          shotDurationRef.current = stopDuration;
-          shotStartPosRef.current = { x: bounceX, y: aiBounceY };
-          shotEndPosRef.current = { x: dropStopX, y: dropStopY };
-          setCurrentAnimDuration(stopDuration);
-          setBallPos({ x: dropStopX, y: dropStopY });
-
-          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
-            startAiShot({ x: dropStopX, y: dropStopY });
-          }, stopDuration);
-        } else {
-          const continueDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: contactX, y: contactY });
-
-          shotStartTimeRef.current = performance.now();
-          setBallTimingFunction(POST_BOUNCE_TIMING);
-          shotDurationRef.current = continueDuration;
-          shotStartPosRef.current = { x: bounceX, y: aiBounceY };
-          shotEndPosRef.current = { x: contactX, y: contactY };
-          setCurrentAnimDuration(continueDuration);
-          setBallPos({ x: contactX, y: contactY });
-
-          if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
-            startAiShot({ x: contactX, y: contactY });
-          }, continueDuration);
-        }
-      }
+        startAiShot({ x: contactX, y: contactY });
+      }, postDuration);
     }, hitSpeed);
   }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, extendShotToY, getAiSpeed, getPostBounceDuration, isOutOfBounds, resetPoint, startAiShot, triggerFeedback]);
 
