@@ -7,12 +7,12 @@ import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
 
 const DEFAULT_LOADOUT: Loadout = {
-  serveFirst: 'pro-serve',
-  serveSecond: 'pro-serve',
-  forehand: 'pro-forehand',
-  backhand: 'pro-backhand',
-  volley: 'pro-volley',
-  athleticism: 'pro-athleticism',
+  serveFirst: 'amateur-serve-1',
+  serveSecond: 'amateur-serve-1',
+  forehand: 'amateur-forehand-1',
+  backhand: 'amateur-backhand-1',
+  volley: 'amateur-volley-1',
+  athleticism: 'amateur-athleticism-1',
 };
 
 const buildPlayerStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
@@ -47,7 +47,7 @@ const App: React.FC = () => {
   const [screen, setScreen] = useState<'shop' | 'opponent' | 'game'>('shop');
   const [wallet, setWallet] = useState(5000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
-    new Set(['pro-serve', 'pro-forehand', 'pro-backhand', 'pro-volley', 'pro-athleticism'])
+    new Set(['amateur-serve-1', 'amateur-forehand-1', 'amateur-backhand-1', 'amateur-volley-1', 'amateur-athleticism-1'])
   );
   const [loadout, setLoadout] = useState<Loadout>(DEFAULT_LOADOUT);
   const [selectedAi, setSelectedAi] = useState<AiProfile>(AI_PROFILES[0]);

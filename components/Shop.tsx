@@ -19,6 +19,29 @@ const typeLabel: Record<ShotType, string> = {
   athleticism: 'Athleticism',
 };
 
+const tierStyles: Record<ShopItem['tier'], { bg: string; border: string; text: string }> = {
+  amateur: {
+    bg: 'bg-slate-500/15',
+    border: 'border-slate-400/40',
+    text: 'text-slate-300',
+  },
+  pro: {
+    bg: 'bg-emerald-500/15',
+    border: 'border-emerald-400/40',
+    text: 'text-emerald-300',
+  },
+  elite: {
+    bg: 'bg-sky-500/15',
+    border: 'border-sky-400/40',
+    text: 'text-sky-300',
+  },
+  special: {
+    bg: 'bg-purple-500/15',
+    border: 'border-purple-400/40',
+    text: 'text-purple-300',
+  },
+};
+
 const buildStats = (items: ShopItem[], loadout: Loadout): PlayerStats => {
   const byId = new Map(items.map(item => [item.id, item.stats]));
   const serveFirst = byId.get(loadout.serveFirst);
@@ -105,11 +128,12 @@ const Shop: React.FC<ShopProps> = ({
                       shotType === 'serve'
                         ? loadout.serveFirst === item.id || loadout.serveSecond === item.id
                         : loadout[shotType] === item.id;
+                    const tierStyle = tierStyles[item.tier];
                     return (
                       <div
                         key={item.id}
-                        className={`rounded-2xl border px-5 py-4 transition-all ${
-                          equipped ? 'border-emerald-400/70 bg-emerald-500/10' : 'border-white/10 bg-white/5'
+                        className={`rounded-2xl border px-5 py-4 transition-all ${tierStyle.bg} ${tierStyle.border} ${
+                          equipped ? 'ring-2 ring-emerald-400/60' : ''
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -119,6 +143,9 @@ const Shop: React.FC<ShopProps> = ({
                             </div>
                             <div className="text-[10px] uppercase tracking-widest text-slate-400">
                               {typeLabel[item.shot]}
+                            </div>
+                            <div className={`mt-2 text-[9px] font-orbitron uppercase tracking-[0.25em] ${tierStyle.text}`}>
+                              {item.tier}
                             </div>
                           </div>
                           <div className="text-right">
@@ -171,6 +198,11 @@ const Shop: React.FC<ShopProps> = ({
                                 style={{ left: `${Math.max(0, Math.min(100, item.stats.shape))}%`, transform: 'translateX(-50%)' }}
                               />
                             </div>
+                          </div>
+                        )}
+                        {item.perk && (
+                          <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[10px] uppercase tracking-widest text-purple-200">
+                            Perk: {item.perk}
                           </div>
                         )}
                         <div className="mt-4 flex items-center gap-2">
