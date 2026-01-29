@@ -52,6 +52,13 @@ const formatRound = (round: number) => {
   return 'Final';
 };
 
+const tierOrder: TournamentTier[] = ['amateur', 'pro', 'elite'];
+const tierMeta: Record<TournamentTier, { title: string; subtitle: string }> = {
+  amateur: { title: 'Amateur Circuit', subtitle: 'ITF Futures & rising prospects' },
+  pro: { title: 'Pro Series', subtitle: 'ATP 250–500 level events' },
+  elite: { title: 'Elite Majors', subtitle: 'Masters 1000 & Grand Slams' },
+};
+
 const Tournaments: React.FC<TournamentsProps> = ({
   tournaments,
   tournamentState,
@@ -81,35 +88,49 @@ const Tournaments: React.FC<TournamentsProps> = ({
       </div>
 
       {!tournamentState ? (
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {tournaments.map(tournament => {
-            const style = tierStyles[tournament.tier];
+        <div className="mt-10 space-y-10">
+          {tierOrder.map(tier => {
+            const tierTournaments = tournaments.filter(tournament => tournament.tier === tier);
+            const meta = tierMeta[tier];
             return (
-              <div
-                key={tournament.id}
-                className={`rounded-2xl border px-6 py-6 ${style.bg} ${style.border}`}
-              >
-                <div className={`text-sm font-orbitron uppercase tracking-widest ${style.text}`}>
-                  {tournament.name}
+              <section key={tier} className="space-y-4">
+                <div>
+                  <div className="text-xl font-orbitron uppercase tracking-widest">{meta.title}</div>
+                  <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">{meta.subtitle}</div>
                 </div>
-                <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
-                  {tournament.description}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {tierTournaments.map(tournament => {
+                    const style = tierStyles[tournament.tier];
+                    return (
+                      <div
+                        key={tournament.id}
+                        className={`rounded-2xl border px-6 py-6 ${style.bg} ${style.border}`}
+                      >
+                        <div className={`text-sm font-orbitron uppercase tracking-widest ${style.text}`}>
+                          {tournament.name}
+                        </div>
+                        <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
+                          {tournament.description}
+                        </div>
+                        <div className="mt-4 space-y-2 text-[10px] uppercase tracking-widest text-slate-300">
+                          {tournament.prizes.map((prize, index) => (
+                            <div key={`${tournament.id}-${index}`} className="bg-black/30 rounded-full px-3 py-1">
+                              {formatRound(index + 1)} • {prize} credits
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onSelectTournament(tournament.id)}
+                          className="mt-5 w-full px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/90 hover:bg-white/20 transition-all"
+                        >
+                          Enter Tournament
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="mt-4 space-y-2 text-[10px] uppercase tracking-widest text-slate-300">
-                  {tournament.prizes.map((prize, index) => (
-                    <div key={`${tournament.id}-${index}`} className="bg-black/30 rounded-full px-3 py-1">
-                      {formatRound(index + 1)} • {prize} credits
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onSelectTournament(tournament.id)}
-                  className="mt-5 w-full px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/90 hover:bg-white/20 transition-all"
-                >
-                  Enter Tournament
-                </button>
-              </div>
+              </section>
             );
           })}
         </div>

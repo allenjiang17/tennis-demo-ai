@@ -5,10 +5,10 @@ import { PHYSICS, MESSAGES } from './constants';
 import Court from './components/Court';
 
 const AI_COURT_BOUNDS = { MIN_X: -10, MAX_X: 110, MIN_Y: -18, MAX_Y: 90 };
-const SERVE_BASE_DURATION = 700;
-const SHOT_BASE_DURATION = 800;
+const SERVE_BASE_DURATION = 1000;
+const SHOT_BASE_DURATION = 1100;
 const DROP_SHOT_BASE_DURATION = 2000;
-const VOLLEY_BASE_DURATION = 500;
+const VOLLEY_BASE_DURATION = 700;
 const PRE_BOUNCE_BEZIER = { x1: 0.18, y1: 0.225, x2: 0.7, y2: 0.85 };
 const PRE_BOUNCE_TIMING = `cubic-bezier(${PRE_BOUNCE_BEZIER.x1}, ${PRE_BOUNCE_BEZIER.y1}, ${PRE_BOUNCE_BEZIER.x2}, ${PRE_BOUNCE_BEZIER.y2})`;
 const POST_BOUNCE_TIMING = 'linear';
@@ -145,7 +145,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const getPlayerSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.2 + (speedStat / 100) * 0.6;
+    const baseMultiplier = 0.1 + (speedStat / 100) * 0.4;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -155,7 +155,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const getAiSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, aiStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, aiStats.athleticism.stamina));
-    const baseMultiplier = 0.2 + (speedStat / 100) * 0.6;
+    const baseMultiplier = 0.1 + (speedStat / 100) * 0.4;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -165,7 +165,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const playerSpeedDebug = useMemo(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.2 + (speedStat / 100) * 0.6;
+    const baseMultiplier = 0.1 + (speedStat / 100) * 0.4;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);

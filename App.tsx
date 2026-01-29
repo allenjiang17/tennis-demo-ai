@@ -4,6 +4,7 @@ import Shop from './components/Shop';
 import OpponentSelect from './components/OpponentSelect';
 import Menu from './components/Menu';
 import Tournaments from './components/Tournaments';
+import TournamentResult from './components/TournamentResult';
 import { AiProfile, Loadout, PlayerStats, ShopItem, ShotType } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
@@ -75,28 +76,96 @@ type TournamentState = {
   status: 'active' | 'eliminated' | 'champion';
   rounds: TournamentMatch[][];
 };
+type TournamentResultState = {
+  outcome: 'eliminated' | 'champion';
+  tournamentName: string;
+  earnings: number;
+};
 
 const TOURNAMENTS: TournamentDef[] = [
   {
-    id: 'amateur-circuit',
-    name: 'Amateur Circuit',
+    id: 'itf-monastir',
+    name: 'ITF Monastir 15K',
     tier: 'amateur',
-    description: 'Local draws and scrappy matchups.',
+    description: 'Hard-court grind in Tunisia.',
     prizes: [100, 250, 600],
   },
   {
-    id: 'pro-series',
-    name: 'Pro Series',
+    id: 'itf-sharm',
+    name: 'ITF Sharm El Sheikh 15K',
+    tier: 'amateur',
+    description: 'Desert heat and fast courts.',
+    prizes: [120, 280, 650],
+  },
+  {
+    id: 'itf-antalya',
+    name: 'ITF Antalya 15K',
+    tier: 'amateur',
+    description: 'Coastal wind and long rallies.',
+    prizes: [120, 300, 700],
+  },
+  {
+    id: 'itf-santa',
+    name: 'ITF Santa Margherita 25K',
+    tier: 'amateur',
+    description: 'Clay court tests and tight margins.',
+    prizes: [150, 350, 800],
+  },
+  {
+    id: 'doha-250',
+    name: 'Qatar ExxonMobil Open',
     tier: 'pro',
-    description: 'ATP 250–500 level grind.',
+    description: 'ATP 250 on fast hard courts.',
     prizes: [500, 1200, 3000],
   },
   {
-    id: 'elite-majors',
-    name: 'Elite Majors',
+    id: 'acapulco-500',
+    name: 'Abierto Mexicano Telcel',
+    tier: 'pro',
+    description: 'ATP 500 under the lights.',
+    prizes: [650, 1500, 3600],
+  },
+  {
+    id: 'barcelona-500',
+    name: 'Barcelona Open Banc Sabadell',
+    tier: 'pro',
+    description: 'Classic clay-court ATP 500.',
+    prizes: [700, 1600, 3800],
+  },
+  {
+    id: 'queens-500',
+    name: 'Cinch Championships',
+    tier: 'pro',
+    description: 'Grass-court warmup in London.',
+    prizes: [650, 1500, 3600],
+  },
+  {
+    id: 'indian-wells-1000',
+    name: 'BNP Paribas Open',
     tier: 'elite',
-    description: '1000s and Grand Slams.',
+    description: 'Masters 1000 in the desert.',
     prizes: [1500, 4000, 10000],
+  },
+  {
+    id: 'miami-open',
+    name: 'Miami Open',
+    tier: 'elite',
+    description: 'Sunshine Swing showdown.',
+    prizes: [1500, 4200, 10500],
+  },
+  {
+    id: 'shanghai-masters',
+    name: 'Shanghai Masters',
+    tier: 'elite',
+    description: 'Fast hard-court Masters 1000.',
+    prizes: [1600, 4500, 11000],
+  },
+  {
+    id: 'wimbledon',
+    name: 'Wimbledon',
+    tier: 'elite',
+    description: 'The Championships on grass.',
+    prizes: [2000, 6000, 15000],
   },
 ];
 
@@ -106,7 +175,7 @@ const TOURNAMENT_OPPONENTS = [
 ];
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<'menu' | 'shop' | 'opponent' | 'tournaments' | 'game'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'shop' | 'opponent' | 'tournaments' | 'tournament-result' | 'game'>('menu');
   const [wallet, setWallet] = useState(5000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
     new Set(['amateur-serve-1', 'amateur-forehand-1', 'amateur-backhand-1', 'amateur-volley-1', 'amateur-athleticism-1'])
@@ -116,6 +185,8 @@ const App: React.FC = () => {
   const [difficulty, setDifficulty] = useState<DifficultyTier>('amateur');
   const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
   const [pendingTournamentMatchId, setPendingTournamentMatchId] = useState<string | null>(null);
+  const [tournamentEarnings, setTournamentEarnings] = useState(0);
+  const [tournamentResult, setTournamentResult] = useState<TournamentResultState | null>(null);
   const [playerPortraitId, setPlayerPortraitId] = useState(PORTRAITS[0]?.id ?? '');
   const [playerName, setPlayerName] = useState('You');
 
@@ -281,6 +352,7 @@ const App: React.FC = () => {
             setScreen('shop');
             return;
           }
+          let resultToShow: TournamentResultState | null = null;
           setTournamentState(prev => {
             if (!prev) return prev;
             const updated: TournamentState = {
@@ -291,17 +363,34 @@ const App: React.FC = () => {
             if (!match) return prev;
             match.winner = winner === 'player' ? 'You' : (match.player1 === 'You' ? match.player2 : match.player1) || 'Opponent';
             if (winner === 'player') {
-              setWallet(prevWallet => prevWallet + updated.prizes[match.round - 1]);
+              const prize = updated.prizes[match.round - 1];
+              setWallet(prevWallet => prevWallet + prize);
+              setTournamentEarnings(prevEarned => prevEarned + prize);
             } else {
               updated.status = 'eliminated';
             }
             resolveNonPlayerMatches(updated, match.round - 1);
             propagateWinners(updated, match.round - 1);
             if (updated.rounds[2][0].winner === 'You') updated.status = 'champion';
+            if (updated.status !== 'active') {
+              const addedPrize = winner === 'player' ? updated.prizes[match.round - 1] : 0;
+              resultToShow = {
+                outcome: updated.status === 'champion' ? 'champion' : 'eliminated',
+                tournamentName: updated.name,
+                earnings: tournamentEarnings + addedPrize,
+              };
+            }
             return updated;
           });
+          if (resultToShow) {
+            setTournamentResult(resultToShow);
+            setTournamentState(null);
+            setTournamentEarnings(0);
+            setScreen('tournament-result');
+          } else {
+            setScreen('tournaments');
+          }
           setPendingTournamentMatchId(null);
-          setScreen('tournaments');
         }}
       />
     );
@@ -332,6 +421,7 @@ const App: React.FC = () => {
         onSelectTournament={tournamentId => {
           const tournament = TOURNAMENTS.find(t => t.id === tournamentId);
           if (!tournament) return;
+          setTournamentEarnings(0);
           setTournamentState(createTournamentState(tournament));
         }}
         onPlayMatch={matchId => {
@@ -345,10 +435,25 @@ const App: React.FC = () => {
           setPendingTournamentMatchId(matchId);
           setScreen('game');
         }}
-          onExitTournament={() => {
-            setTournamentState(null);
-          }}
+        onExitTournament={() => {
+          setTournamentState(null);
+          setTournamentEarnings(0);
+        }}
         onBack={() => setScreen('menu')}
+      />
+    );
+  }
+
+  if (screen === 'tournament-result' && tournamentResult) {
+    return (
+      <TournamentResult
+        outcome={tournamentResult.outcome}
+        tournamentName={tournamentResult.tournamentName}
+        earnings={tournamentResult.earnings}
+        onContinue={() => {
+          setTournamentResult(null);
+          setScreen('tournaments');
+        }}
       />
     );
   }
