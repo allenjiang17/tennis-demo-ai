@@ -91,6 +91,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const [isServePending, setIsServePending] = useState(true);
   const [serveTarget, setServeTarget] = useState<'wide' | 'middle'>('wide');
   const [rosterOpen, setRosterOpen] = useState<'player' | 'opponent' | null>(null);
+  const [aiRunTarget, setAiRunTarget] = useState<{ x: number; y: number } | null>(null);
   const matchReportedRef = useRef(false);
   
   // Meter states
@@ -145,7 +146,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const getPlayerSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.1 + (speedStat / 100) * 0.4;
+    const baseMultiplier = 0.1 + (speedStat / 100) * 0.6;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -155,7 +156,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const getAiSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, aiStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, aiStats.athleticism.stamina));
-    const baseMultiplier = 0.1 + (speedStat / 100) * 0.4;
+    const baseMultiplier = 0.1 + (speedStat / 100) * 0.6;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -165,7 +166,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const playerSpeedDebug = useMemo(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.1 + (speedStat / 100) * 0.4;
+    const baseMultiplier = 0.1 + (speedStat / 100) * 0.6;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -395,7 +396,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           return SHOT_BASE_DURATION;
       }
     })();
-    const multiplier = 1.5 - (power / 100) * 0.8;
+    const multiplier = 1.8 - (power / 100);
     return Math.max(200, baseDuration * multiplier);
   }, []);
 
@@ -587,6 +588,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     triggerFeedback(winner === 'player' ? "POINT!" : "MISS!", 1000);
     aiTargetXRef.current = 50; // Recover to center
     aiTargetYRef.current = aiHomeY;
+    setAiRunTarget(null);
     
     setTimeout(() => {
       setCurrentAnimDuration(0);
@@ -628,6 +630,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const startAiShot = useCallback((startOverride?: { x: number; y: number }) => {
     setIsAiSwinging(true);
     setTimeout(() => setIsAiSwinging(false), 250);
+    setAiRunTarget(null);
     const startX = startOverride?.x ?? currentAiPosRef.current.x;
     const startY = startOverride?.y ?? currentAiPosRef.current.y;
     const timingFactor = Math.max(-1, Math.min(1, (Math.random() * 2 - 1)));
@@ -764,17 +767,21 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 8, aiBounceY - 36);
     const preStart = { x: startX, y: startY };
     const preEnd = { x: bounceX, y: aiBounceY };
+    const dropStopX = extendShotToY(preStart, preEnd, dropStopY);
+    const contactX = extendShotToY(preStart, preEnd, contactY);
     const isOut = isOutOfBounds(bounceX, aiBounceY);
 
     // AI starts moving towards where the ball will land
-    if (!isOut) {
-      if (aiWillVolley) {
-        aiTargetXRef.current = volleyTarget.x;
-        aiTargetYRef.current = volleyTarget.y;
-      } else {
-        aiTargetXRef.current = bounceX;
-        aiTargetYRef.current = isDropShot ? dropStopY : Math.max(AI_COURT_BOUNDS.MIN_Y, contactY - 8);
-      }
+    if (aiWillVolley) {
+      aiTargetXRef.current = volleyTarget.x;
+      aiTargetYRef.current = volleyTarget.y;
+      setAiRunTarget({ x: volleyTarget.x, y: volleyTarget.y });
+    } else {
+      const targetY = isDropShot ? dropStopY : Math.max(AI_COURT_BOUNDS.MIN_Y, contactY - 8);
+      const targetX = isDropShot ? dropStopX : contactX;
+      aiTargetXRef.current = targetX;
+      aiTargetYRef.current = targetY;
+      setAiRunTarget({ x: targetX, y: targetY });
     }
 
     shotStartTimeRef.current = performance.now();
@@ -816,14 +823,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       ballHasBouncedRef.current = true;
       if (isOut) {
         triggerFeedback("OUT! ❌", 600);
+        setAiRunTarget(null);
         if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
         ballTimeoutRef.current = setTimeout(() => {
           resetPoint('opponent');
         }, 600);
         return;
       }
-      const dropStopX = extendShotToY(preStart, preEnd, dropStopY);
-      const contactX = extendShotToY(preStart, preEnd, contactY);
       const aiCheckX = isDropShot ? dropStopX : contactX;
       const aiCheckY = isDropShot ? dropStopY : contactY;
       const aiNow = currentAiPosRef.current;
@@ -866,6 +872,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
       if (!canReach) {
         triggerFeedback("WINNER! 🏆", 600);
+        setAiRunTarget(null);
         const outY = -24;
         const outX = extendShotToY(preStart, preEnd, outY);
         shotStartTimeRef.current = performance.now();
@@ -886,6 +893,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
       if (Math.random() < aiMissChance) {
         triggerFeedback("MISSED!", 600);
+        setAiRunTarget(null);
         if (isDropShot) {
           const stopDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: dropStopX, y: dropStopY });
           shotStartTimeRef.current = performance.now();
@@ -918,6 +926,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           }, postBounceDuration);
         }
       } else {
+        setAiRunTarget(null);
         if (isDropShot) {
           const stopDuration = getPostBounceDuration(preStart, preEnd, hitSpeed, { x: bounceX, y: aiBounceY }, { x: dropStopX, y: dropStopY });
 
@@ -1124,6 +1133,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     setCurrentAnimDuration(0);
     setBallTimingFunction(PRE_BOUNCE_TIMING);
     setBallPos({ x: serverPos.x, y: serverPos.y });
+    setAiRunTarget(null);
     shotStartPosRef.current = { x: serverPos.x, y: serverPos.y };
     shotEndPosRef.current = { x: serverPos.x, y: serverPos.y };
     shotStartTimeRef.current = performance.now();
@@ -1509,6 +1519,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           serveDebug={serveDebug}
           aiVolleyZoneY={AI_VOLLEY_ZONE_Y}
           aiVolleyTarget={aiVolleyDebugTarget}
+          aiRunTarget={aiRunTarget}
           aiSwinging={isAiSwinging}
           animationDuration={currentAnimDuration}
           ballTimingFunction={ballTimingFunction}

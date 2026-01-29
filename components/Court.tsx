@@ -21,6 +21,7 @@ interface CourtProps {
   serveDebug?: { x: number; y: number; radius: number; visible: boolean };
   aiVolleyZoneY?: number;
   aiVolleyTarget?: { x: number; y: number };
+  aiRunTarget?: { x: number; y: number };
   aiSwinging: boolean;
   animationDuration: number;
   ballTimingFunction: string;
@@ -42,6 +43,7 @@ const Court: React.FC<CourtProps> = ({
   serveDebug,
   aiVolleyZoneY,
   aiVolleyTarget,
+  aiRunTarget,
   aiSwinging,
   animationDuration, 
   ballTimingFunction,
@@ -101,6 +103,7 @@ const Court: React.FC<CourtProps> = ({
     ? mapToCourt({ x: PHYSICS.COURT_BOUNDS.MIN_X, y: aiVolleyZoneY })
     : null;
   const aiVolleyTargetOnCourt = aiVolleyTarget ? mapToCourt(aiVolleyTarget) : null;
+  const aiRunTargetOnCourt = aiRunTarget ? mapToCourt(aiRunTarget) : null;
 
   return (
     <div className="relative w-full h-full perspective-1000 overflow-hidden bg-slate-900 flex items-start justify-center">
@@ -180,6 +183,17 @@ const Court: React.FC<CourtProps> = ({
             style={{
               left: `${aiVolleyTargetOnCourt.x}%`,
               top: `${aiVolleyTargetOnCourt.y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
+
+        {aiRunTargetOnCourt && (
+          <div
+            className="absolute pointer-events-none z-10 w-3 h-3 rounded-full bg-fuchsia-500 shadow-[0_0_12px_rgba(217,70,239,0.9)]"
+            style={{
+              left: `${aiRunTargetOnCourt.x}%`,
+              top: `${aiRunTargetOnCourt.y}%`,
               transform: 'translate(-50%, -50%)',
             }}
           />
