@@ -1529,6 +1529,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
       {rosterTarget && (
         <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <style>{`
+            @keyframes subtleGlow {
+              0%, 100% {
+                box-shadow: inset 0 0 0 1px rgba(196,181,253,0.32), inset 0 0 18px rgba(168,85,247,0.2);
+              }
+              50% {
+                box-shadow: inset 0 0 0 1px rgba(196,181,253,0.4), inset 0 0 24px rgba(168,85,247,0.28);
+              }
+            }
+          `}</style>
           <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-950/90 p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
@@ -1564,8 +1574,18 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
                 { label: 'Athleticism', id: rosterTarget.loadout.athleticism },
               ]).map(slot => {
                 const item = itemById.get(slot.id);
+                const tierStyle = item?.tier === 'special'
+                  ? 'border-purple-300/70 bg-[linear-gradient(135deg,rgba(196,181,253,0.28),rgba(168,85,247,0.16),rgba(76,29,149,0.26))] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.35),inset_0_0_22px_rgba(168,85,247,0.25)]'
+                  : item?.tier === 'elite'
+                    ? 'border-sky-400/60 bg-sky-500/10'
+                    : item?.tier === 'pro'
+                      ? 'border-emerald-400/60 bg-emerald-500/10'
+                      : 'border-slate-400/50 bg-slate-500/10';
+                const tierGlowStyle = item?.tier === 'special'
+                  ? { animation: 'subtleGlow 6s ease-in-out infinite' }
+                  : undefined;
                 return (
-                  <div key={slot.label} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div key={slot.label} className={`rounded-2xl border px-4 py-3 ${tierStyle}`} style={tierGlowStyle}>
                     <div className="flex items-center justify-between">
                       <span>{slot.label}</span>
                       <span className="text-slate-400">{item?.player || 'Unknown'}</span>

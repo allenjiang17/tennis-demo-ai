@@ -42,8 +42,8 @@ const tierStyles: Record<ShopItem['tier'], { bg: string; border: string; text: s
     text: 'text-sky-300',
   },
   special: {
-    bg: 'bg-purple-500/15',
-    border: 'border-purple-400/40',
+    bg: 'bg-[linear-gradient(135deg,rgba(196,181,253,0.28),rgba(168,85,247,0.16),rgba(76,29,149,0.26))] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.35),inset_0_0_22px_rgba(168,85,247,0.25)]',
+    border: 'border-purple-300/70',
     text: 'text-purple-300',
   },
 };
@@ -105,6 +105,16 @@ const Shop: React.FC<ShopProps> = ({
   return (
     <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
+      <style>{`
+        @keyframes subtleGlow {
+          0%, 100% {
+            box-shadow: inset 0 0 0 1px rgba(196,181,253,0.32), inset 0 0 18px rgba(168,85,247,0.2);
+          }
+          50% {
+            box-shadow: inset 0 0 0 1px rgba(196,181,253,0.4), inset 0 0 24px rgba(168,85,247,0.28);
+          }
+        }
+      `}</style>
       <div className="relative z-10 max-w-6xl mx-auto px-8 py-10 pb-20 min-h-full">
         <div className="flex items-start justify-between">
           <div>
@@ -222,12 +232,16 @@ const Shop: React.FC<ShopProps> = ({
                         ? loadout.serveFirst === item.id || loadout.serveSecond === item.id
                         : loadout[shotType] === item.id;
                     const tierStyle = tierStyles[item.tier];
+                    const tierGlowStyle = item.tier === 'special'
+                      ? { animation: 'subtleGlow 6s ease-in-out infinite' }
+                      : undefined;
                     return (
                       <div
                         key={item.id}
                         className={`rounded-2xl border px-5 py-4 transition-all ${tierStyle.bg} ${tierStyle.border} ${
                           equipped ? 'ring-2 ring-emerald-400/60' : ''
                         }`}
+                        style={tierGlowStyle}
                       >
                         <div className="flex items-center justify-between">
                           <div>
