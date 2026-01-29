@@ -254,9 +254,9 @@ const App: React.FC = () => {
 
   const rollTier = (): ShopItem['tier'] => {
     const roll = Math.random() * 100;
-    //if (roll < 40) return 'amateur';
-    //if (roll < 75) return 'pro';
-    //if (roll < 95) return 'elite';
+    if (roll < 40) return 'amateur';
+    if (roll < 75) return 'pro';
+    if (roll < 95) return 'elite';
     return 'legendary';
   };
 

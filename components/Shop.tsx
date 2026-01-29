@@ -7,7 +7,7 @@ type ShopProps = {
   ownedIds: Set<string>;
   loadout: Loadout;
   onEquip: (item: ShopItem, slot: keyof Loadout) => void;
-  onStart: () => void;
+  onStart?: () => void;
   onBack?: () => void;
   portraits?: { id: string; name: string; src: string }[];
   selectedPortraitId?: string;
@@ -209,8 +209,7 @@ const Shop: React.FC<ShopProps> = ({
           </div>
         )}
 
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8">
-          <div className="space-y-8">
+        <div className="mt-10 space-y-8">
             {(Object.keys(itemsByType) as ShotType[]).map(shotType => (
               <section key={shotType}>
                 <div className="flex items-center justify-between mb-4">
@@ -232,7 +231,7 @@ const Shop: React.FC<ShopProps> = ({
                     const tierStyle = tierStyles[item.tier];
                     const selectedGlow =
                       item.tier === 'legendary'
-                        ? 'ring-1 ring-yellow-200/60 shadow-[0_0_26px_rgba(250,204,21,0.7)]'
+                        ? 'ring-1 ring-yellow-100/70 shadow-[0_0_40px_rgba(250,204,21,0.95),0_0_90px_rgba(255,220,120,0.6)]'
                         : item.tier === 'elite'
                           ? 'ring-1 ring-sky-200/60 shadow-[0_0_24px_rgba(56,189,248,0.65)]'
                           : item.tier === 'pro'
@@ -241,13 +240,15 @@ const Shop: React.FC<ShopProps> = ({
                     const tierGlowStyle = item.tier === 'legendary'
                       ? { animation: 'subtleGlow 6s ease-in-out infinite' }
                       : undefined;
+                    const equippedGlowStyle = equipped && item.tier === 'legendary'
+                      ? { boxShadow: '0 0 50px rgba(250,204,21,0.95), 0 0 110px rgba(255,220,120,0.7)' }
+                      : undefined;
                     return (
                       <div
                         key={item.id}
                         className={`rounded-2xl border px-5 py-4 transition-all ${tierStyle.bg} ${tierStyle.border} ${
                           equipped ? selectedGlow : ''
                         }`}
-                        style={tierGlowStyle}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -364,70 +365,6 @@ const Shop: React.FC<ShopProps> = ({
                 </div>
               </section>
             ))}
-          </div>
-
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-5">
-              <h3 className="text-sm font-orbitron uppercase tracking-widest text-slate-300">
-                Current Loadout
-              </h3>
-              <div className="mt-4 space-y-3 text-[10px] uppercase tracking-widest text-slate-400">
-                <div>
-                  1st Serve: {items.find(item => item.id === loadout.serveFirst)?.player || 'None'}
-                </div>
-                <div>
-                  2nd Serve: {items.find(item => item.id === loadout.serveSecond)?.player || 'None'}
-                </div>
-                <div>
-                  Forehand: {items.find(item => item.id === loadout.forehand)?.player || 'None'}
-                </div>
-                <div>
-                  Backhand: {items.find(item => item.id === loadout.backhand)?.player || 'None'}
-                </div>
-                <div>
-                  Volley: {items.find(item => item.id === loadout.volley)?.player || 'None'}
-                </div>
-                <div>
-                  Athleticism: {items.find(item => item.id === loadout.athleticism)?.player || 'None'}
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  1st PWR {stats.serveFirst.power}
-                </div>
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  FH CTR {stats.forehand.control}
-                </div>
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  BH CTR {stats.backhand.control}
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  SPD {stats.athleticism.speed}
-                </div>
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  STM {stats.athleticism.stamina}
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  VL CTR {stats.volley.control}
-                </div>
-                <div className="bg-black/30 rounded-full px-3 py-1 text-center">
-                  VL ACC {stats.volley.accuracy}
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={onStart}
-              className="w-full px-6 py-4 rounded-full text-sm font-orbitron uppercase tracking-widest border border-white/20 bg-white text-slate-900 hover:scale-[1.02] transition-transform"
-            >
-              Start Match
-            </button>
-          </div>
         </div>
       </div>
     </div>
