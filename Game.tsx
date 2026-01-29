@@ -65,6 +65,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
   const [aiPos, setAiPos] = useState({ x: 50, y: 8 });
   const currentAiPosRef = useRef(aiPos);
   const [lastStroke, setLastStroke] = useState<'FH' | 'BH' | null>(null);
+  const [aiLastStroke, setAiLastStroke] = useState<'FH' | 'BH' | null>(null);
   const [isSwinging, setIsSwinging] = useState(false);
   const [isAiSwinging, setIsAiSwinging] = useState(false);
   const [commentary, setCommentary] = useState("Ready to dominate?");
@@ -615,6 +616,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     const endX = Math.random() < aiProfile.tendencies.awayBias ? awayX : towardX;
     const outY = 224;
     const aiStroke = ballHitPosRef.current.x < startX ? 'BH' : 'FH';
+    setAiLastStroke(aiStroke);
     const aiShotStats = aiStats[aiStroke === 'FH' ? 'forehand' : 'backhand'];
     const duration = getPowerDuration(isDropShot ? 'dropshot' : (aiStroke === 'FH' ? 'forehand' : 'backhand'), aiShotStats.power);
     const outDuration = duration;
@@ -1168,6 +1170,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
       setTimeout(() => {
         setIsAiSwinging(true);
         setTimeout(() => setIsAiSwinging(false), 250);
+        setAiLastStroke('FH');
         playHitSound(false);
         isBallLiveRef.current = true;
         ballHasBouncedRef.current = false;
@@ -1358,6 +1361,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
           aiSwinging={isAiSwinging}
           animationDuration={currentAnimDuration}
           ballTimingFunction={ballTimingFunction}
+          aiLastStroke={aiLastStroke}
           lastStroke={lastStroke}
           isSwinging={isSwinging}
           bounceMarkers={bounceMarkers}

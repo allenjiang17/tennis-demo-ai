@@ -24,6 +24,7 @@ interface CourtProps {
   aiSwinging: boolean;
   animationDuration: number;
   ballTimingFunction: string;
+  aiLastStroke: 'FH' | 'BH' | null;
   lastStroke: 'FH' | 'BH' | null;
   isSwinging: boolean;
   bounceMarkers: BounceMarker[];
@@ -44,6 +45,7 @@ const Court: React.FC<CourtProps> = ({
   aiSwinging,
   animationDuration, 
   ballTimingFunction,
+  aiLastStroke,
   lastStroke, 
   isSwinging,
   bounceMarkers 
@@ -56,7 +58,12 @@ const Court: React.FC<CourtProps> = ({
     }
   };
 
-  const getAiRacketRotation = () => (aiSwinging ? 210 : 30);
+  const getAiRacketRotation = () => {
+    if (aiLastStroke === 'BH') {
+      return aiSwinging ? 315 : 135;
+    }
+    return aiSwinging ? -135 : 45;
+  };
 
   const playableInsetX = 12;
   const playableInsetTop = 12;
@@ -214,16 +221,17 @@ const Court: React.FC<CourtProps> = ({
              <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-900 rounded-full shadow-lg border-2 border-white flex items-center justify-center text-white text-[8px] font-bold">AI</div>
              {/* AI Racket */}
              <div 
-               className="absolute -top-2 left-1/2 w-[70px] h-[12px] pointer-events-none transition-transform duration-200 ease-out flex items-center justify-end"
+               className="absolute w-[85px] h-[10px] pointer-events-none transition-transform duration-200 ease-out flex items-center justify-end"
                style={{ 
                  transformOrigin: 'left center',
-                 transform: `translateX(-10%) rotate(${getAiRacketRotation()}deg)`,
+                 left: '50%',
+                 transform: `scaleY(-1) rotate(${getAiRacketRotation()}deg)`,
                  opacity: aiSwinging ? 1 : 0.5
                }}
              >
                <div className="flex items-center">
-                 <div className="w-10 h-2 bg-slate-400 rounded-l-full shadow-md" />
-                 <div className="w-8 h-8 border-[3px] border-slate-200 rounded-[45%] bg-white/5 flex items-center justify-center overflow-hidden relative shadow-lg">
+                 <div className="w-12 h-2 bg-slate-400 rounded-l-full shadow-md" />
+                 <div className="w-16 h-12 border-[4px] border-slate-200 rounded-[45%] bg-white/5 flex items-center justify-center overflow-hidden relative shadow-xl">
                    <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_2px,rgba(255,255,255,0.1)_2px),linear-gradient(-45deg,transparent_2px,rgba(255,255,255,0.1)_2px)] bg-[size:4px_4px]" />
                  </div>
                </div>
