@@ -396,7 +396,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           return SHOT_BASE_DURATION;
       }
     })();
-    const multiplier = 1.8 - (power / 100);
+    const multiplier = 1.8 - (power / 70);
     return Math.max(200, baseDuration * multiplier);
   }, []);
 
@@ -745,11 +745,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     startX: number;
     startY: number;
     hitSpeed: number;
+    hitSpin: number;
     isDropShot: boolean;
     bounceX: number;
     bounceY: number;
   }) => {
-    const { startX, startY, hitSpeed, isDropShot, bounceX, bounceY } = params;
+    const { startX, startY, hitSpeed, hitSpin, isDropShot, bounceX, bounceY } = params;
     const aiNow = currentAiPosRef.current;
     const aiVolleyCandidate = aiNow.y >= AI_VOLLEY_ZONE_Y;
     const aiBounceY = bounceY;
@@ -764,7 +765,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const aiCanReachVolley = aiVolleyDist < aiVolleyRadius || aiTravelMs <= volleyArrivalMs;
     const aiWillVolley = aiVolleyCandidate && aiCanReachVolley;
     const dropStopY = Math.max(24, aiBounceY - 24);
-    const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 8, aiBounceY - 36);
+    const spinFactor = Math.max(0.6, Math.min(1.6, 1 + (hitSpin - 60) / 120));
+    const contactOffset = 36 * spinFactor;
+    const contactY = Math.max(AI_COURT_BOUNDS.MIN_Y + 8, aiBounceY - contactOffset);
     const preStart = { x: startX, y: startY };
     const preEnd = { x: bounceX, y: aiBounceY };
     const dropStopX = extendShotToY(preStart, preEnd, dropStopY);
@@ -960,6 +963,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           startX: p.x,
           startY: p.y,
           hitSpeed: serveDuration,
+          hitSpin: serveStats.spin,
           isDropShot: false,
           bounceX: serveBounce.x,
           bounceY: serveBounce.y,
@@ -1050,6 +1054,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         startX: bX,
         startY: bY,
         hitSpeed,
+        hitSpin,
         isDropShot,
         bounceX: bounce.x,
         bounceY: bounce.y,
