@@ -61,7 +61,7 @@ const ShotShop: React.FC<ShotShopProps> = ({
       </div>
 
       <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 px-6 py-5 text-[10px] uppercase tracking-widest text-slate-300">
-        Odds per box: Amateur 40% • Pro 30% • Elite 20% • Special 10%
+        Odds per card: Amateur 40% • Pro 30% • Elite 20% • Legendary 10%
       </div>
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -72,7 +72,7 @@ const ShotShop: React.FC<ShotShopProps> = ({
             <div key={shotType} className="rounded-2xl border border-white/10 bg-white/5 px-6 py-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-lg font-orbitron uppercase tracking-widest">{shotLabels[shotType]} Box</div>
+          <div className="text-lg font-orbitron uppercase tracking-widest">{shotLabels[shotType]} Mystery Card</div>
                   <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
                     Owned: {ownedCounts[shotType] || 0}
                   </div>
@@ -83,7 +83,7 @@ const ShotShop: React.FC<ShotShopProps> = ({
                 </div>
               </div>
               <div className="mt-4 text-[10px] uppercase tracking-widest text-slate-400">
-                Open to reveal a random {shotLabels[shotType].toLowerCase()}.
+                Reveal a random {shotLabels[shotType].toLowerCase()}.
               </div>
               <button
                 type="button"
@@ -95,7 +95,7 @@ const ShotShop: React.FC<ShotShopProps> = ({
                     : 'border-white/10 text-white/30 bg-white/5 cursor-not-allowed'
                 }`}
               >
-                Open Box
+                Buy Mystery Card
               </button>
             </div>
           );

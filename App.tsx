@@ -240,7 +240,7 @@ const App: React.FC = () => {
     if (roll < 40) return 'amateur';
     if (roll < 70) return 'pro';
     if (roll < 90) return 'elite';
-    return 'special';
+    return 'legendary';
   };
 
   const pickRandomItem = (shot: ShotType): ShopItem | null => {
@@ -257,6 +257,7 @@ const App: React.FC = () => {
     const item = pickRandomItem(shot);
     if (!item) return;
     setWallet(prev => prev - price);
+    setOwnedIds(prev => new Set([...Array.from(prev), item.id]));
     setPendingBox({ item, alreadyOwned: ownedIds.has(item.id) });
     setScreen('box-open');
   };
@@ -532,11 +533,6 @@ const App: React.FC = () => {
         onBack={() => {
           setPendingBox(null);
           setScreen('shot-shop');
-        }}
-        onConfirm={() => {
-          setOwnedIds(prev => new Set([...Array.from(prev), pendingBox.item.id]));
-          setPendingBox(null);
-          setScreen('player');
         }}
       />
     );

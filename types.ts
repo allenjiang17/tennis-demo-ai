@@ -61,8 +61,9 @@ export type ShopItem = {
   shot: ShotType;
   stats: ShotStats | VolleyStats | AthleticismStats;
   price: number;
-  tier: 'amateur' | 'pro' | 'elite' | 'special';
+  tier: 'amateur' | 'pro' | 'elite' | 'legendary';
   perk?: string;
+  description?: string;
 };
 
 export type Loadout = {

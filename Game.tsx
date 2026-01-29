@@ -1532,10 +1532,10 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           <style>{`
             @keyframes subtleGlow {
               0%, 100% {
-                box-shadow: inset 0 0 0 1px rgba(196,181,253,0.32), inset 0 0 18px rgba(168,85,247,0.2);
+                box-shadow: inset 0 0 0 1px rgba(253,230,138,0.35), inset 0 0 18px rgba(250,204,21,0.2);
               }
               50% {
-                box-shadow: inset 0 0 0 1px rgba(196,181,253,0.4), inset 0 0 24px rgba(168,85,247,0.28);
+                box-shadow: inset 0 0 0 1px rgba(254,240,138,0.45), inset 0 0 24px rgba(250,204,21,0.32);
               }
             }
           `}</style>
@@ -1574,14 +1574,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
                 { label: 'Athleticism', id: rosterTarget.loadout.athleticism },
               ]).map(slot => {
                 const item = itemById.get(slot.id);
-                const tierStyle = item?.tier === 'special'
-                  ? 'border-purple-300/70 bg-[linear-gradient(135deg,rgba(196,181,253,0.28),rgba(168,85,247,0.16),rgba(76,29,149,0.26))] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.35),inset_0_0_22px_rgba(168,85,247,0.25)]'
+                const tierStyle = item?.tier === 'legendary'
+                  ? 'border-yellow-300/70 bg-[linear-gradient(135deg,rgba(253,230,138,0.28),rgba(250,204,21,0.2),rgba(161,98,7,0.35))] shadow-[inset_0_0_0_1px_rgba(254,243,199,0.4),inset_0_0_22px_rgba(250,204,21,0.25)]'
                   : item?.tier === 'elite'
                     ? 'border-sky-400/60 bg-sky-500/10'
                     : item?.tier === 'pro'
                       ? 'border-emerald-400/60 bg-emerald-500/10'
                       : 'border-slate-400/50 bg-slate-500/10';
-                const tierGlowStyle = item?.tier === 'special'
+                const tierGlowStyle = item?.tier === 'legendary'
                   ? { animation: 'subtleGlow 6s ease-in-out infinite' }
                   : undefined;
                 return (

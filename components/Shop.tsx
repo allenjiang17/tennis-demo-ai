@@ -40,10 +40,10 @@ const tierStyles: Record<ShopItem['tier'], { bg: string; border: string; text: s
     border: 'border-sky-400/40',
     text: 'text-sky-300',
   },
-  special: {
-    bg: 'bg-[linear-gradient(135deg,rgba(196,181,253,0.28),rgba(168,85,247,0.16),rgba(76,29,149,0.26))] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.35),inset_0_0_22px_rgba(168,85,247,0.25)]',
-    border: 'border-purple-300/70',
-    text: 'text-purple-300',
+  legendary: {
+    bg: 'bg-[linear-gradient(135deg,rgba(253,230,138,0.28),rgba(250,204,21,0.2),rgba(161,98,7,0.35))] shadow-[inset_0_0_0_1px_rgba(254,243,199,0.4),inset_0_0_22px_rgba(250,204,21,0.25)]',
+    border: 'border-yellow-300/70',
+    text: 'text-yellow-200',
   },
 };
 
@@ -107,10 +107,10 @@ const Shop: React.FC<ShopProps> = ({
       <style>{`
         @keyframes subtleGlow {
           0%, 100% {
-            box-shadow: inset 0 0 0 1px rgba(196,181,253,0.32), inset 0 0 18px rgba(168,85,247,0.2);
+            box-shadow: inset 0 0 0 1px rgba(253,230,138,0.35), inset 0 0 18px rgba(250,204,21,0.2);
           }
           50% {
-            box-shadow: inset 0 0 0 1px rgba(196,181,253,0.4), inset 0 0 24px rgba(168,85,247,0.28);
+            box-shadow: inset 0 0 0 1px rgba(254,240,138,0.45), inset 0 0 24px rgba(250,204,21,0.32);
           }
         }
       `}</style>
@@ -230,7 +230,7 @@ const Shop: React.FC<ShopProps> = ({
                         ? loadout.serveFirst === item.id || loadout.serveSecond === item.id
                         : loadout[shotType] === item.id;
                     const tierStyle = tierStyles[item.tier];
-                    const tierGlowStyle = item.tier === 'special'
+                    const tierGlowStyle = item.tier === 'legendary'
                       ? { animation: 'subtleGlow 6s ease-in-out infinite' }
                       : undefined;
                     return (
@@ -306,7 +306,7 @@ const Shop: React.FC<ShopProps> = ({
                           </div>
                         )}
                         {item.perk && (
-                          <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[10px] uppercase tracking-widest text-purple-200">
+                          <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[10px] uppercase tracking-widest text-yellow-200">
                             Perk: {item.perk}
                           </div>
                         )}

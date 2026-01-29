@@ -4,24 +4,38 @@ import { ShopItem } from '../types';
 type ShotBoxOpenProps = {
   item: ShopItem;
   alreadyOwned: boolean;
-  onConfirm: () => void;
   onBack: () => void;
 };
 
-const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onConfirm, onBack }) => {
+const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack }) => {
   const [opened, setOpened] = useState(false);
+  const handleOpen = () => {
+    if (opened) return;
+    setOpened(true);
+  };
   const tierLabel = item.tier.toUpperCase();
-  const tierStyle = item.tier === 'special'
-    ? 'border-purple-300/70 bg-[linear-gradient(135deg,rgba(196,181,253,0.28),rgba(168,85,247,0.16),rgba(76,29,149,0.26))] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.35),inset_0_0_22px_rgba(168,85,247,0.25)] text-purple-200'
+  const tierStyle = item.tier === 'legendary'
+    ? 'border-yellow-300/80 bg-[linear-gradient(135deg,rgb(220,198,112),rgb(210,172,16),rgb(118,72,5))] shadow-[0_0_90px_rgba(250,204,21,0.55),inset_0_0_0_1px_rgba(254,243,199,0.3),inset_0_0_18px_rgba(250,204,21,0.2)] text-yellow-50'
     : item.tier === 'elite'
-      ? 'border-sky-400/60 bg-sky-500/10 text-sky-200'
-      : item.tier === 'pro'
-        ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200'
-        : 'border-slate-400/50 bg-slate-500/10 text-slate-200';
+      ? 'border-sky-300/70 bg-sky-500/25 shadow-[0_0_44px_rgba(56,189,248,0.45)] text-sky-100'
+    : item.tier === 'pro'
+        ? 'border-emerald-300/70 bg-[linear-gradient(135deg,rgb(55,110,92),rgb(32,78,65),rgb(14,54,44))] shadow-[0_0_32px_rgba(16,185,129,0.26)] text-emerald-100'
+        : 'border-slate-400/50 bg-slate-500/20 text-slate-200';
 
   return (
     <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-hidden">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
+      <style>{`
+        .card-flip {
+          transform-style: preserve-3d;
+          transition: transform 0.8s ease-in-out;
+          transform: rotateY(0deg);
+          will-change: transform;
+        }
+        .card-flip.card-flip-open {
+          transform: rotateY(180deg);
+        }
+      `}</style>
       <div className="relative z-10 h-full max-w-4xl mx-auto px-8 py-12 flex flex-col items-center justify-center">
         <div className="w-full flex items-center justify-between">
           <div>
@@ -40,52 +54,65 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onConfirm
         </div>
 
         <div className="mt-12 flex flex-col items-center">
-          {!opened ? (
-            <>
-              <div className="w-52 h-52 rounded-3xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.45)] flex items-center justify-center">
-                <div className="text-xs font-orbitron uppercase tracking-widest text-slate-300">Mystery Box</div>
+          <div className="relative flex flex-col items-center">
+            <div className="relative w-64 h-80" style={{ perspective: '1200px' }}>
+              <div className={`absolute inset-0 card-flip ${opened ? 'card-flip-open' : ''}`}>
+                <div
+                  className="absolute inset-0 rounded-3xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.45)] flex items-center justify-center"
+                  style={{ backfaceVisibility: 'hidden' }}
+                >
+                  <div className="text-xs font-orbitron uppercase tracking-widest text-slate-300">Mystery Card</div>
+                </div>
+                <div
+                  className={`absolute inset-0 rounded-3xl border p-6 text-center ${tierStyle}`}
+                  style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
+                >
+                  <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+                    {alreadyOwned ? 'Duplicate Found' : 'New Shot Unlocked'}
+                  </div>
+                  <div className="mt-4 text-2xl font-orbitron uppercase tracking-widest">{item.player}</div>
+                  <div className="mt-1 text-xs uppercase tracking-widest text-slate-400">{item.shot}</div>
+                  <div className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full border ${tierStyle}`}>
+                    <span className="text-[10px] font-orbitron uppercase tracking-widest">{tierLabel}</span>
+                  </div>
+                  <div className="mt-4 text-[10px] uppercase tracking-widest text-slate-300">
+                    {item.shot === 'volley' && (
+                      <>CTR {(item.stats as any).control} • ACC {(item.stats as any).accuracy}</>
+                    )}
+                    {item.shot === 'athleticism' && (
+                      <>SPD {(item.stats as any).speed} • STM {(item.stats as any).stamina}</>
+                    )}
+                    {item.shot !== 'volley' && item.shot !== 'athleticism' && (
+                      <>PWR {(item.stats as any).power} • SPN {(item.stats as any).spin} • CTR {(item.stats as any).control}</>
+                    )}
+                  </div>
+                  {item.description && (
+                    <div className="mt-4 text-[11px] text-slate-200/90">
+                      {item.description}
+                    </div>
+                  )}
+                  {item.perk && (
+                    <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[10px] uppercase tracking-widest text-yellow-200">
+                      Perk: {item.perk}
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+            {!opened && (
               <button
                 type="button"
-                onClick={() => setOpened(true)}
+                onClick={handleOpen}
                 className="mt-8 px-6 py-3 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-emerald-300/70 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
               >
-                Open Box
+                Flip Card
               </button>
-            </>
-          ) : (
-            <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-white/5 p-6 text-center">
-              <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
-                {alreadyOwned ? 'Duplicate Found' : 'New Shot Unlocked'}
-              </div>
-              <div className="mt-4 text-2xl font-orbitron uppercase tracking-widest">{item.player}</div>
-              <div className="mt-1 text-xs uppercase tracking-widest text-slate-400">{item.shot}</div>
-              <div className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full border ${tierStyle}`}>
-                <span className="text-[10px] font-orbitron uppercase tracking-widest">{tierLabel}</span>
-              </div>
-              <div className="mt-4 text-[10px] uppercase tracking-widest text-slate-300">
-                {item.shot === 'volley' && (
-                  <>CTR {(item.stats as any).control} • ACC {(item.stats as any).accuracy}</>
-                )}
-                {item.shot === 'athleticism' && (
-                  <>SPD {(item.stats as any).speed} • STM {(item.stats as any).stamina}</>
-                )}
-                {item.shot !== 'volley' && item.shot !== 'athleticism' && (
-                  <>PWR {(item.stats as any).power} • SPN {(item.stats as any).spin} • CTR {(item.stats as any).control}</>
-                )}
-              </div>
-              {item.perk && (
-                <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[10px] uppercase tracking-widest text-purple-200">
-                  Perk: {item.perk}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={onConfirm}
-                className="mt-6 px-6 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/90 hover:bg-white/20 transition-all"
-              >
-                Add To Collection
-              </button>
+            )}
+          </div>
+
+          {opened && (
+            <div className="mt-6 text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+              Added to collection.
             </div>
           )}
         </div>
