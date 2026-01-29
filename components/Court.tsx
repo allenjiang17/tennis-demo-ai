@@ -225,7 +225,7 @@ const Court: React.FC<CourtProps> = ({
                style={{ 
                  transformOrigin: 'left center',
                  left: '50%',
-                 transform: `scaleY(-1) rotate(${getAiRacketRotation()}deg)`,
+                 transform: `scale(-1, -1) rotate(${getAiRacketRotation()}deg)`,
                  opacity: aiSwinging ? 1 : 0.5
                }}
              >

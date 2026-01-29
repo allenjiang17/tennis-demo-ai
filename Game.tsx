@@ -268,63 +268,67 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, onExit }) 
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     const ctx = audioCtxRef.current;
 
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.9, ctx.currentTime);
+
+    const saturation = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.tanh(x * 1.4);
+    }
+    saturation.curve = curve;
+    saturation.oversample = '2x';
+
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(6500, ctx.currentTime);
+
+    master.connect(saturation);
+    saturation.connect(lowpass);
+    lowpass.connect(ctx.destination);
+
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(isPlayer ? 150 : 135, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(95, ctx.currentTime + 0.07);
-    gain.gain.setValueAtTime(0.65, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.6, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(master);
     osc.start();
-    osc.stop(ctx.currentTime + 0.14);
-
-    const bufferSize = ctx.sampleRate * 0.04;
+    osc.stop(ctx.currentTime + 0.12);
 
     const snapOsc = ctx.createOscillator();
     const snapGain = ctx.createGain();
     snapOsc.type = 'square';
-    snapOsc.frequency.setValueAtTime(isPlayer ? 2200 : 2000, ctx.currentTime);
-    snapOsc.frequency.exponentialRampToValueAtTime(1300, ctx.currentTime + 0.02);
-    snapGain.gain.setValueAtTime(0.1, ctx.currentTime);
+    snapOsc.frequency.setValueAtTime(1000, ctx.currentTime);
+    snapOsc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.015);
+    snapGain.gain.setValueAtTime(0.08, ctx.currentTime);
     snapGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
     snapOsc.connect(snapGain);
-    snapGain.connect(ctx.destination);
+    snapGain.connect(master);
     snapOsc.start();
     snapOsc.stop(ctx.currentTime + 0.03);
 
+    const bufferSize = Math.floor(ctx.sampleRate * 0.03);
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const noiseData = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) noiseData[i] = Math.random() * 2 - 1;
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = 'highpass';
-    noiseFilter.frequency.setValueAtTime(900, ctx.currentTime);
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(1800, ctx.currentTime);
+    bandpass.Q.setValueAtTime(0.7, ctx.currentTime);
     const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.2, ctx.currentTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.gain.setValueAtTime(0.16, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+    noise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(master);
     noise.start();
-
-    const popNoiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const popNoiseData = popNoiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) popNoiseData[i] = Math.random() * 2 - 1;
-    const popNoise = ctx.createBufferSource();
-    popNoise.buffer = popNoiseBuffer;
-    const popFilter = ctx.createBiquadFilter();
-    popFilter.type = 'lowpass';
-    popFilter.frequency.setValueAtTime(480, ctx.currentTime);
-    const popGain = ctx.createGain();
-    popGain.gain.setValueAtTime(0.22, ctx.currentTime);
-    popGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
-    popNoise.connect(popFilter);
-    popFilter.connect(popGain);
-    popGain.connect(ctx.destination);
-    popNoise.start();
   }, []);
 
   const addBounceMarker = useCallback((x: number, y: number) => {
