@@ -15,7 +15,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
   };
   const tierLabel = item.tier.toUpperCase();
   const tierStyle = item.tier === 'legendary'
-    ? 'border-yellow-300/80 bg-[linear-gradient(135deg,rgb(220,198,112),rgb(210,172,16),rgb(118,72,5))] shadow-[0_0_90px_rgba(250,204,21,0.55),inset_0_0_0_1px_rgba(254,243,199,0.3),inset_0_0_18px_rgba(250,204,21,0.2)] text-yellow-50'
+    ? 'border-yellow-200/90 bg-[linear-gradient(135deg,rgb(232,210,128),rgb(214,176,24),rgb(120,70,6))] shadow-[0_0_160px_rgba(250,204,21,0.9),0_0_80px_rgba(255,220,120,0.65),inset_0_0_0_1px_rgba(255,245,210,0.35),inset_0_0_24px_rgba(250,204,21,0.4)] text-yellow-50'
     : item.tier === 'elite'
       ? 'border-sky-300/70 bg-sky-500/25 shadow-[0_0_44px_rgba(56,189,248,0.45)] text-sky-100'
     : item.tier === 'pro'
@@ -55,8 +55,14 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
 
         <div className="mt-12 flex flex-col items-center">
           <div className="relative flex flex-col items-center">
-            <div className="relative w-64 h-80" style={{ perspective: '1200px' }}>
-              <div className={`absolute inset-0 card-flip ${opened ? 'card-flip-open' : ''}`}>
+            <div className="relative flex items-center justify-center">
+              <div
+                className={`relative w-64 h-80 transition-transform duration-500 ease-out ${
+                  opened && item.tier === 'legendary' ? '-translate-x-28' : 'translate-x-0'
+                }`}
+                style={{ perspective: '1200px' }}
+              >
+                <div className={`absolute inset-0 card-flip ${opened ? 'card-flip-open' : ''}`}>
                 <div
                   className="absolute inset-0 rounded-3xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.45)] flex items-center justify-center"
                   style={{ backfaceVisibility: 'hidden' }}
@@ -67,15 +73,15 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
                   className={`absolute inset-0 rounded-3xl border p-6 text-center ${tierStyle}`}
                   style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
                 >
-                  <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+                  <div className="text-[10px] font-orbitron uppercase tracking-widest text-amber-200/80">
                     {alreadyOwned ? 'Duplicate Found' : 'New Shot Unlocked'}
                   </div>
                   <div className="mt-4 text-2xl font-orbitron uppercase tracking-widest">{item.player}</div>
-                  <div className="mt-1 text-xs uppercase tracking-widest text-slate-400">{item.shot}</div>
+                  <div className="mt-1 text-xs uppercase tracking-widest text-amber-200/70">{item.shot}</div>
                   <div className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full border ${tierStyle}`}>
                     <span className="text-[10px] font-orbitron uppercase tracking-widest">{tierLabel}</span>
                   </div>
-                  <div className="mt-4 text-[10px] uppercase tracking-widest text-slate-300">
+                  <div className="mt-4 text-[10px] uppercase tracking-widest text-amber-100/90">
                     {item.shot === 'volley' && (
                       <>CTR {(item.stats as any).control} • ACC {(item.stats as any).accuracy}</>
                     )}
@@ -87,7 +93,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
                     )}
                   </div>
                   {item.description && (
-                    <div className="mt-4 text-[11px] text-slate-200/90">
+                    <div className="mt-4 text-[11px] text-white/90">
                       {item.description}
                     </div>
                   )}
@@ -97,6 +103,27 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
                     </div>
                   )}
                 </div>
+                </div>
+              {item.tier === 'legendary' && (
+                <div
+                  className={`absolute left-full top-0 ml-8 hidden md:block transition-all duration-[1400ms] ${
+                    opened
+                      ? 'opacity-100 scale-100 ease-out delay-[1300ms]'
+                      : 'opacity-0 scale-95 ease-in'
+                  }`}
+                >
+                  <div className={`absolute -inset-6 rounded-[32px] bg-yellow-400/50 blur-3xl transition-all duration-[1600ms] ${
+                    opened ? 'opacity-100 scale-110 delay-[1300ms]' : 'opacity-0 scale-90'
+                  }`} />
+                  <div className="relative h-80 w-56 overflow-hidden rounded-2xl border border-yellow-200/40 bg-black/30 shadow-[0_0_50px_rgba(250,204,21,0.75)]">
+                    <img
+                      src={`/shots/${item.id}.png`}
+                      alt="Legendary shot"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </div>
+              )}
               </div>
             </div>
             {!opened && (

@@ -8,6 +8,7 @@ type TournamentDef = {
   tier: TournamentTier;
   description: string;
   prizes: number[];
+  image?: string;
 };
 
 type TournamentMatch = {
@@ -106,6 +107,15 @@ const Tournaments: React.FC<TournamentsProps> = ({
                         key={tournament.id}
                         className={`rounded-2xl border px-6 py-6 ${style.bg} ${style.border}`}
                       >
+                        {tournament.image && (
+                          <div className="mb-4 h-28 w-full overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                            <img
+                              src={tournament.image}
+                              alt={tournament.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        )}
                         <div className={`text-sm font-orbitron uppercase tracking-widest ${style.text}`}>
                           {tournament.name}
                         </div>

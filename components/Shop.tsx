@@ -230,6 +230,14 @@ const Shop: React.FC<ShopProps> = ({
                         ? loadout.serveFirst === item.id || loadout.serveSecond === item.id
                         : loadout[shotType] === item.id;
                     const tierStyle = tierStyles[item.tier];
+                    const selectedGlow =
+                      item.tier === 'legendary'
+                        ? 'ring-1 ring-yellow-200/60 shadow-[0_0_26px_rgba(250,204,21,0.7)]'
+                        : item.tier === 'elite'
+                          ? 'ring-1 ring-sky-200/60 shadow-[0_0_24px_rgba(56,189,248,0.65)]'
+                          : item.tier === 'pro'
+                            ? 'ring-1 ring-emerald-200/60 shadow-[0_0_22px_rgba(16,185,129,0.6)]'
+                            : 'ring-1 ring-slate-200/50 shadow-[0_0_20px_rgba(148,163,184,0.5)]';
                     const tierGlowStyle = item.tier === 'legendary'
                       ? { animation: 'subtleGlow 6s ease-in-out infinite' }
                       : undefined;
@@ -237,7 +245,7 @@ const Shop: React.FC<ShopProps> = ({
                       <div
                         key={item.id}
                         className={`rounded-2xl border px-5 py-4 transition-all ${tierStyle.bg} ${tierStyle.border} ${
-                          equipped ? 'ring-2 ring-emerald-400/60' : ''
+                          equipped ? selectedGlow : ''
                         }`}
                         style={tierGlowStyle}
                       >
@@ -253,12 +261,7 @@ const Shop: React.FC<ShopProps> = ({
                               {item.tier}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-widest text-slate-400">
-                              Owned
-                            </div>
-                            <div className="text-sm font-orbitron">Yes</div>
-                          </div>
+                          <div className="text-right" />
                         </div>
                         {item.shot === 'athleticism' ? (
                           <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-slate-300">
@@ -318,7 +321,7 @@ const Shop: React.FC<ShopProps> = ({
                                 onClick={() => onEquip(item, 'serveFirst')}
                                 className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
                                   loadout.serveFirst === item.id
-                                    ? 'border-emerald-300/70 text-emerald-200'
+                                    ? `${tierStyle.border} ${tierStyle.text}`
                                     : 'border-white/20 bg-white/5 hover:bg-white/10'
                                 }`}
                               >
@@ -329,7 +332,7 @@ const Shop: React.FC<ShopProps> = ({
                                 onClick={() => onEquip(item, 'serveSecond')}
                                 className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
                                   loadout.serveSecond === item.id
-                                    ? 'border-emerald-300/70 text-emerald-200'
+                                    ? `${tierStyle.border} ${tierStyle.text}`
                                     : 'border-white/20 bg-white/5 hover:bg-white/10'
                                 }`}
                               >
@@ -342,7 +345,7 @@ const Shop: React.FC<ShopProps> = ({
                               onClick={() => onEquip(item, shotType)}
                               className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
                                 equipped
-                                  ? 'border-emerald-300/70 text-emerald-200'
+                                  ? `${tierStyle.border} ${tierStyle.text}`
                                   : 'border-white/20 bg-white/5 hover:bg-white/10'
                               }`}
                             >

@@ -56,6 +56,7 @@ type TournamentDef = {
   tier: DifficultyTier;
   description: string;
   prizes: number[];
+  image?: string;
 };
 
 type TournamentMatch = {
@@ -118,6 +119,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'Qatar ExxonMobil Open',
     tier: 'pro',
     description: 'ATP 250 on fast hard courts.',
+    image: '/tournaments/smalltournament.png',
     prizes: [500, 1200, 3000],
   },
   {
@@ -125,6 +127,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'Abierto Mexicano Telcel',
     tier: 'pro',
     description: 'ATP 500 under the lights.',
+    image: '/tournaments/smalltournament.png',
     prizes: [650, 1500, 3600],
   },
   {
@@ -132,6 +135,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'Barcelona Open Banc Sabadell',
     tier: 'pro',
     description: 'Classic clay-court ATP 500.',
+    image: '/tournaments/smalltournament.png',
     prizes: [700, 1600, 3800],
   },
   {
@@ -139,6 +143,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'Cinch Championships',
     tier: 'pro',
     description: 'Grass-court warmup in London.',
+    image: '/tournaments/smalltournament.png',
     prizes: [650, 1500, 3600],
   },
   {
@@ -146,6 +151,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'BNP Paribas Open',
     tier: 'elite',
     description: 'Masters 1000 in the desert.',
+    image: '/tournaments/hardcourt.png',
     prizes: [1500, 4000, 10000],
   },
   {
@@ -153,6 +159,7 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'Miami Open',
     tier: 'elite',
     description: 'Sunshine Swing showdown.',
+    image: '/tournaments/hardcourt.png',
     prizes: [1500, 4200, 10500],
   },
   {
@@ -160,13 +167,23 @@ const TOURNAMENTS: TournamentDef[] = [
     name: 'Shanghai Masters',
     tier: 'elite',
     description: 'Fast hard-court Masters 1000.',
+    image: '/tournaments/hardcourt.png',
     prizes: [1600, 4500, 11000],
+  },
+  {
+    id: 'french-open',
+    name: 'French Open',
+    tier: 'elite',
+    description: 'Clay-court Grand Slam in Paris.',
+    image: '/tournaments/claycourt.png',
+    prizes: [2000, 6000, 15000],
   },
   {
     id: 'wimbledon',
     name: 'Wimbledon',
     tier: 'elite',
     description: 'The Championships on grass.',
+    image: '/tournaments/wimbledon.png',
     prizes: [2000, 6000, 15000],
   },
 ];
@@ -237,9 +254,9 @@ const App: React.FC = () => {
 
   const rollTier = (): ShopItem['tier'] => {
     const roll = Math.random() * 100;
-    if (roll < 40) return 'amateur';
-    if (roll < 70) return 'pro';
-    if (roll < 90) return 'elite';
+    //if (roll < 40) return 'amateur';
+    //if (roll < 75) return 'pro';
+    //if (roll < 95) return 'elite';
     return 'legendary';
   };
 
