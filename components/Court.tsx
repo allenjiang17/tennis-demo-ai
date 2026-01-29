@@ -26,8 +26,10 @@ interface CourtProps {
   animationDuration: number;
   ballTimingFunction: string;
   aiLastStroke: 'FH' | 'BH' | null;
+  aiVolleySwinging: boolean;
   lastStroke: 'FH' | 'BH' | null;
   isSwinging: boolean;
+  isVolleySwinging: boolean;
   bounceMarkers: BounceMarker[];
 }
 
@@ -48,23 +50,32 @@ const Court: React.FC<CourtProps> = ({
   animationDuration, 
   ballTimingFunction,
   aiLastStroke,
+  aiVolleySwinging,
   lastStroke, 
   isSwinging,
+  isVolleySwinging,
   bounceMarkers 
 }) => {
   const getRacketRotation = () => {
+    const idle = lastStroke === 'BH' ? 135 : 45;
+    const full = lastStroke === 'BH' ? 315 : -135;
+    const swing = isVolleySwinging ? idle + (full - idle) * 0.5 : full;
+    if (!lastStroke) return 45;
     if (lastStroke === 'BH') {
-      return isSwinging ? 315 : 135;
+      return isSwinging ? swing : idle;
     } else {
-      return isSwinging ? -135 : 45;
+      return isSwinging ? swing : idle;
     }
   };
 
   const getAiRacketRotation = () => {
+    const idle = aiLastStroke === 'BH' ? 135 : 45;
+    const full = aiLastStroke === 'BH' ? 315 : -135;
+    const swing = aiVolleySwinging ? idle + (full - idle) * 0.5 : full;
     if (aiLastStroke === 'BH') {
-      return aiSwinging ? 315 : 135;
+      return aiSwinging ? swing : idle;
     }
-    return aiSwinging ? -135 : 45;
+    return aiSwinging ? swing : idle;
   };
 
   const playableInsetX = 12;

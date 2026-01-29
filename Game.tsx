@@ -8,10 +8,12 @@ const AI_COURT_BOUNDS = { MIN_X: -10, MAX_X: 110, MIN_Y: -18, MAX_Y: 90 };
 const SERVE_BASE_DURATION = 1000;
 const SHOT_BASE_DURATION = 1100;
 const DROP_SHOT_BASE_DURATION = 2000;
-const VOLLEY_BASE_DURATION = 700;
+const VOLLEY_BASE_DURATION = 500;
 const PRE_BOUNCE_BEZIER = { x1: 0.18, y1: 0.225, x2: 0.7, y2: 0.85 };
 const PRE_BOUNCE_TIMING = `cubic-bezier(${PRE_BOUNCE_BEZIER.x1}, ${PRE_BOUNCE_BEZIER.y1}, ${PRE_BOUNCE_BEZIER.x2}, ${PRE_BOUNCE_BEZIER.y2})`;
 const POST_BOUNCE_TIMING = 'linear';
+const GROUND_NEUTRAL_ANGLE_DEG = 15;
+const VOLLEY_NEUTRAL_ANGLE_DEG = 30;
 const cubicBezierEase = (t: number, x1: number, y1: number, x2: number, y2: number) => {
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
   const sampleCurve = (t0: number, a: number, b: number) => {
@@ -77,7 +79,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const [lastStroke, setLastStroke] = useState<'FH' | 'BH' | null>(null);
   const [aiLastStroke, setAiLastStroke] = useState<'FH' | 'BH' | null>(null);
   const [isSwinging, setIsSwinging] = useState(false);
+  const [isVolleySwinging, setIsVolleySwinging] = useState(false);
   const [isAiSwinging, setIsAiSwinging] = useState(false);
+  const [isAiVolleySwinging, setIsAiVolleySwinging] = useState(false);
   const [commentary, setCommentary] = useState("Ready to dominate?");
   const [feedback, setFeedback] = useState("");
   const [rallyCount, setRallyCount] = useState(0);
@@ -114,6 +118,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const aiTargetXRef = useRef<number>(50);
   const aiTargetYRef = useRef<number>(8);
   const ballHasBouncedRef = useRef(false);
+  const aiVolleySwingRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const serveInProgressRef = useRef(false);
   const initialServerRef = useRef<'player' | 'opponent'>('player');
@@ -450,10 +455,6 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     0.8 + (shape / 100)
   ), [])
 
-  const getVolleyTimingScale = useCallback((accuracy: number) => (
-    2.2 - (Math.max(0, Math.min(100, accuracy)) / 100) * 1.4
-  ), []);
-
   const getBouncePoint = useCallback((
     startX: number,
     startY: number,
@@ -629,7 +630,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   
   const startAiShot = useCallback((startOverride?: { x: number; y: number }) => {
     setIsAiSwinging(true);
-    setTimeout(() => setIsAiSwinging(false), 250);
+    setIsAiVolleySwinging(aiVolleySwingRef.current);
+    aiVolleySwingRef.current = false;
+    setTimeout(() => {
+      setIsAiSwinging(false);
+      setIsAiVolleySwinging(false);
+    }, 250);
     setAiRunTarget(null);
     const startX = startOverride?.x ?? currentAiPosRef.current.x;
     const startY = startOverride?.y ?? currentAiPosRef.current.y;
@@ -803,6 +809,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
       ballTimeoutRef.current = setTimeout(() => {
+        aiVolleySwingRef.current = true;
         startAiShot({ x: volleyTarget.x, y: volleyTarget.y });
       }, volleyDuration);
       return;
@@ -858,8 +865,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
         const aiStroke = aiCheckX < aiNow.x ? 'BH' : 'FH';
         const aiHitRadius = aiStroke === 'FH' ? aiHitRadiusFH : aiHitRadiusBH;
+        const aiControl = aiStroke === 'FH' ? aiStats.forehand.control : aiStats.backhand.control;
+        const controlFactor = Math.max(0.15, 1 - aiControl / 160);
+        const powerFactor = Math.max(0, Math.min(1, (hitSpin + hitSpeed / 20) / 200));
+        const baseMissChance = 0.04 + powerFactor * 0.25;
+        const missChance = Math.max(0.01, baseMissChance * controlFactor);
         const inRange = aiDistFromBall < aiHitRadius;
-        const missChance = inRange ? 0.02 : 1;
 
         if (isDropShot) {
           if (!inRange || Math.random() < missChance) {
@@ -957,7 +968,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
         setLastStroke(targetPoint.x < p.x ? 'BH' : 'FH');
         setIsSwinging(true);
-        setTimeout(() => setIsSwinging(false), 250);
+        setIsVolleySwinging(false);
+        setTimeout(() => {
+          setIsSwinging(false);
+          setIsVolleySwinging(false);
+        }, 250);
         playHitSound(true);
         executePlayerShot({
           startX: p.x,
@@ -984,7 +999,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         : (stroke === 'FH' ? playerHitRadiusFH : playerHitRadiusBH);
       setLastStroke(stroke);
       setIsSwinging(true);
-      setTimeout(() => setIsSwinging(false), 250);
+      setIsVolleySwinging(isVolley);
+      setTimeout(() => {
+        setIsSwinging(false);
+        setIsVolleySwinging(false);
+      }, 250);
 
       if (!isBallLiveRef.current) return;
 
@@ -1014,10 +1033,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         setIsMeterActive(false);
       }, 800); 
 
-      const timingScale = isVolley
-        ? getVolleyTimingScale(playerStats.volley.accuracy)
-        : getTimingScale(stroke === 'FH' ? playerStats.forehand.shape : playerStats.backhand.shape);
-      const timingFactor = Math.max(-1, Math.min(1, (dy / hitRadius) * timingScale));
+      const timingScale = getTimingScale(stroke === 'FH' ? playerStats.forehand.shape : playerStats.backhand.shape);
+      const neutralAngle = isVolley ? VOLLEY_NEUTRAL_ANGLE_DEG : GROUND_NEUTRAL_ANGLE_DEG;
+      const neutralOffset = Math.tan((neutralAngle * Math.PI) / 180) * hitRadius;
+      const timingFactor = isVolley
+        ? Math.max(-1, Math.min(1, ((dy + neutralOffset) / hitRadius)))
+        : Math.max(-1, Math.min(1, ((dy + neutralOffset) / hitRadius) * timingScale));
       const lerpT = (timingFactor + 1) / 2;
       
       let targetX: number;
@@ -1045,16 +1066,18 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       
       triggerAiCommentary(ShotQuality.PERFECT);
       const hitPower = stroke === 'FH' ? playerStats.forehand.power : playerStats.backhand.power;
-      const hitSpin = stroke === 'FH' ? playerStats.forehand.spin : playerStats.backhand.spin;
+      const baseSpin = isVolley ? 0 : (stroke === 'FH' ? playerStats.forehand.spin : playerStats.backhand.spin);
       const hitSpeed = getPowerDuration(isDropShot ? 'dropshot' : (isVolley ? 'volley' : (stroke === 'FH' ? 'forehand' : 'backhand')), hitPower);
+      const accuracySpin = isVolley ? (playerStats.volley.accuracy / 100) * 80 : 0;
+      const effectiveSpin = baseSpin + accuracySpin;
       const baseBounceY = isDropShot ? 80 : (isVolley ? VOLLEY_TARGET_Y : 36);
       const targetPoint = getInBoundsTarget(bX, bY, targetX, baseBounceY);
-      const bounce = getBouncePoint(bX, bY, targetPoint.x, targetPoint.y, hitPower, hitSpin);
+      const bounce = getBouncePoint(bX, bY, targetPoint.x, targetPoint.y, hitPower, effectiveSpin);
       executePlayerShot({
         startX: bX,
         startY: bY,
         hitSpeed,
-        hitSpin,
+        hitSpin: baseSpin,
         isDropShot,
         bounceX: bounce.x,
         bounceY: bounce.y,
@@ -1160,7 +1183,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
       setTimeout(() => {
         setIsAiSwinging(true);
-        setTimeout(() => setIsAiSwinging(false), 250);
+        setIsAiVolleySwinging(false);
+        setTimeout(() => {
+          setIsAiSwinging(false);
+          setIsAiVolleySwinging(false);
+        }, 250);
         setAiLastStroke('FH');
         playHitSound(false);
         isBallLiveRef.current = true;
@@ -1472,8 +1499,10 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           animationDuration={currentAnimDuration}
           ballTimingFunction={ballTimingFunction}
           aiLastStroke={aiLastStroke}
+          aiVolleySwinging={isAiVolleySwinging}
           lastStroke={lastStroke}
           isSwinging={isSwinging}
+          isVolleySwinging={isVolleySwinging}
           bounceMarkers={bounceMarkers}
         />
         
