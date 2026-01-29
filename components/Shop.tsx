@@ -6,7 +6,6 @@ type ShopProps = {
   wallet: number;
   ownedIds: Set<string>;
   loadout: Loadout;
-  onBuy: (item: ShopItem) => void;
   onEquip: (item: ShopItem, slot: keyof Loadout) => void;
   onStart: () => void;
   onBack?: () => void;
@@ -81,7 +80,6 @@ const Shop: React.FC<ShopProps> = ({
   wallet,
   ownedIds,
   loadout,
-  onBuy,
   onEquip,
   onStart,
   onBack,
@@ -94,12 +92,13 @@ const Shop: React.FC<ShopProps> = ({
   const stats = buildStats(items, loadout);
   const [showPortraits, setShowPortraits] = useState(false);
   const selectedPortrait = portraits?.find(portrait => portrait.id === selectedPortraitId);
+  const ownedItems = items.filter(item => ownedIds.has(item.id));
   const itemsByType: Record<ShotType, ShopItem[]> = {
-    serve: items.filter(item => item.shot === 'serve'),
-    forehand: items.filter(item => item.shot === 'forehand'),
-    backhand: items.filter(item => item.shot === 'backhand'),
-    volley: items.filter(item => item.shot === 'volley'),
-    athleticism: items.filter(item => item.shot === 'athleticism'),
+    serve: ownedItems.filter(item => item.shot === 'serve'),
+    forehand: ownedItems.filter(item => item.shot === 'forehand'),
+    backhand: ownedItems.filter(item => item.shot === 'backhand'),
+    volley: ownedItems.filter(item => item.shot === 'volley'),
+    athleticism: ownedItems.filter(item => item.shot === 'athleticism'),
   };
 
   return (
@@ -226,7 +225,6 @@ const Shop: React.FC<ShopProps> = ({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {itemsByType[shotType].map(item => {
-                    const owned = ownedIds.has(item.id);
                     const equipped =
                       shotType === 'serve'
                         ? loadout.serveFirst === item.id || loadout.serveSecond === item.id
@@ -257,9 +255,9 @@ const Shop: React.FC<ShopProps> = ({
                           </div>
                           <div className="text-right">
                             <div className="text-[10px] uppercase tracking-widest text-slate-400">
-                              Price
+                              Owned
                             </div>
-                            <div className="text-sm font-orbitron">{item.price}</div>
+                            <div className="text-sm font-orbitron">Yes</div>
                           </div>
                         </div>
                         {item.shot === 'athleticism' ? (
@@ -313,15 +311,7 @@ const Shop: React.FC<ShopProps> = ({
                           </div>
                         )}
                         <div className="mt-4 flex items-center gap-2">
-                          {!owned ? (
-                            <button
-                              type="button"
-                              onClick={() => onBuy(item)}
-                              className="px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 hover:bg-white/20 transition-all"
-                            >
-                              Buy
-                            </button>
-                          ) : shotType === 'serve' ? (
+                          {shotType === 'serve' ? (
                             <>
                               <button
                                 type="button"
@@ -359,15 +349,15 @@ const Shop: React.FC<ShopProps> = ({
                               {equipped ? 'Equipped' : 'Equip'}
                             </button>
                           )}
-                          {owned && (
-                            <span className="text-[10px] uppercase tracking-widest text-emerald-300/80">
-                              Owned
-                            </span>
-                          )}
                         </div>
                       </div>
                     );
                   })}
+                  {itemsByType[shotType].length === 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-[10px] uppercase tracking-widest text-slate-400">
+                      No {typeLabel[shotType].toLowerCase()} shots owned. Open boxes in the Shot Shop.
+                    </div>
+                  )}
                 </div>
               </section>
             ))}

@@ -3,6 +3,8 @@ import Game from './Game';
 import Shop from './components/Shop';
 import OpponentSelect from './components/OpponentSelect';
 import Menu from './components/Menu';
+import ShotShop from './components/ShotShop';
+import ShotBoxOpen from './components/ShotBoxOpen';
 import Tournaments from './components/Tournaments';
 import TournamentResult from './components/TournamentResult';
 import { AiProfile, Loadout, PlayerStats, ShopItem, ShotType } from './types';
@@ -175,7 +177,7 @@ const TOURNAMENT_OPPONENTS = [
 ];
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<'menu' | 'shop' | 'opponent' | 'tournaments' | 'tournament-result' | 'game'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game'>('menu');
   const [wallet, setWallet] = useState(5000);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(
     new Set(['amateur-serve-1', 'amateur-forehand-1', 'amateur-backhand-1', 'amateur-volley-1', 'amateur-athleticism-1'])
@@ -189,6 +191,15 @@ const App: React.FC = () => {
   const [tournamentResult, setTournamentResult] = useState<TournamentResultState | null>(null);
   const [playerPortraitId, setPlayerPortraitId] = useState(PORTRAITS[0]?.id ?? '');
   const [playerName, setPlayerName] = useState('You');
+  const [pendingBox, setPendingBox] = useState<{ item: ShopItem; alreadyOwned: boolean } | null>(null);
+
+  const boxPrices: Record<ShotType, number> = {
+    serve: 450,
+    forehand: 400,
+    backhand: 400,
+    volley: 350,
+    athleticism: 350,
+  };
 
   const buildTieredLoadout = useMemo(() => {
     const byId = new Map(SHOP_ITEMS.map(item => [item.id, item]));
@@ -224,11 +235,30 @@ const App: React.FC = () => {
     [buildTieredLoadout, difficulty, selectedAi]
   );
 
-  const handleBuy = (item: ShopItem) => {
-    if (ownedIds.has(item.id)) return;
-    if (item.price > wallet) return;
-    setWallet(prev => prev - item.price);
-    setOwnedIds(prev => new Set([...Array.from(prev), item.id]));
+  const rollTier = (): ShopItem['tier'] => {
+    const roll = Math.random() * 100;
+    if (roll < 40) return 'amateur';
+    if (roll < 70) return 'pro';
+    if (roll < 90) return 'elite';
+    return 'special';
+  };
+
+  const pickRandomItem = (shot: ShotType): ShopItem | null => {
+    const tier = rollTier();
+    const tierItems = SHOP_ITEMS.filter(item => item.shot === shot && item.tier === tier);
+    const pool = tierItems.length > 0 ? tierItems : SHOP_ITEMS.filter(item => item.shot === shot);
+    if (pool.length === 0) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+
+  const handleBuyBox = (shot: ShotType) => {
+    const price = boxPrices[shot];
+    if (wallet < price) return;
+    const item = pickRandomItem(shot);
+    if (!item) return;
+    setWallet(prev => prev - price);
+    setPendingBox({ item, alreadyOwned: ownedIds.has(item.id) });
+    setScreen('box-open');
   };
 
   const handleEquip = (item: ShopItem, slot: keyof Loadout) => {
@@ -346,10 +376,10 @@ const App: React.FC = () => {
         playerPortrait={playerPortrait}
         opponentPortrait={tournamentState ? nextTournamentMatch?.player1 === 'You' ? nextTournamentMatch.player2Portrait : nextTournamentMatch?.player1Portrait : undefined}
         playerName={playerName}
-        onExit={() => setScreen(tournamentState ? 'tournaments' : 'shop')}
+        onExit={() => setScreen(tournamentState ? 'tournaments' : 'player')}
         onMatchEnd={winner => {
           if (!tournamentState || !pendingTournamentMatchId) {
-            setScreen('shop');
+            setScreen('player');
             return;
           }
           let resultToShow: TournamentResultState | null = null;
@@ -458,14 +488,13 @@ const App: React.FC = () => {
     );
   }
 
-  if (screen === 'shop') {
+  if (screen === 'player') {
     return (
       <Shop
         items={SHOP_ITEMS}
         wallet={wallet}
         ownedIds={ownedIds}
         loadout={loadout}
-        onBuy={handleBuy}
         onEquip={handleEquip}
         onStart={() => setScreen('opponent')}
         onBack={() => setScreen('menu')}
@@ -478,9 +507,45 @@ const App: React.FC = () => {
     );
   }
 
+  if (screen === 'shot-shop') {
+    const ownedCounts = SHOP_ITEMS.reduce<Record<ShotType, number>>((acc, item) => {
+      if (ownedIds.has(item.id)) acc[item.shot] += 1;
+      return acc;
+    }, { serve: 0, forehand: 0, backhand: 0, volley: 0, athleticism: 0 });
+    return (
+      <ShotShop
+        wallet={wallet}
+        boxPrices={boxPrices}
+        ownedCounts={ownedCounts}
+        onBuyBox={handleBuyBox}
+        onBack={() => setScreen('menu')}
+        onPlayerPage={() => setScreen('player')}
+      />
+    );
+  }
+
+  if (screen === 'box-open' && pendingBox) {
+    return (
+      <ShotBoxOpen
+        item={pendingBox.item}
+        alreadyOwned={pendingBox.alreadyOwned}
+        onBack={() => {
+          setPendingBox(null);
+          setScreen('shot-shop');
+        }}
+        onConfirm={() => {
+          setOwnedIds(prev => new Set([...Array.from(prev), pendingBox.item.id]));
+          setPendingBox(null);
+          setScreen('player');
+        }}
+      />
+    );
+  }
+
   return (
     <Menu
-      onShop={() => setScreen('shop')}
+      onPlayerPage={() => setScreen('player')}
+      onShotShop={() => setScreen('shot-shop')}
       onChallenge={() => setScreen('opponent')}
       onTournaments={() => setScreen('tournaments')}
     />
