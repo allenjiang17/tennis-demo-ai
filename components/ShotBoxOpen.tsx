@@ -41,7 +41,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
       <div className="relative z-10 h-full max-w-4xl mx-auto px-8 py-12 flex flex-col items-center justify-center">
         <div className="w-full flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-orbitron font-black tracking-[0.3em] italic">ACE MASTER</h1>
+            <h1 className="text-3xl font-orbitron font-black tracking-[0.3em] italic">Neon Slam</h1>
             <p className="text-xs font-orbitron uppercase tracking-widest text-slate-400 mt-2">
               Shot Reveal
             </p>

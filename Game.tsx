@@ -56,11 +56,13 @@ type GameProps = {
   playerPortrait?: string;
   opponentPortrait?: string;
   playerName?: string;
+  tournamentName?: string;
+  tournamentRound?: string;
   onExit?: () => void;
   onMatchEnd?: (winner: 'player' | 'opponent') => void;
 };
 
-const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, surface, opponentName, playerPortrait, opponentPortrait, playerName, onExit, onMatchEnd }) => {
+const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, surface, opponentName, playerPortrait, opponentPortrait, playerName, tournamentName, tournamentRound, onExit, onMatchEnd }) => {
   const opponentLabel = opponentName || 'Master AI';
   const playerLabel = playerName?.trim() || 'You';
   const [gameState, setGameState] = useState<GameState>({
@@ -83,8 +85,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const [isVolleySwinging, setIsVolleySwinging] = useState(false);
   const [isAiSwinging, setIsAiSwinging] = useState(false);
   const [isAiVolleySwinging, setIsAiVolleySwinging] = useState(false);
-  const [commentary, setCommentary] = useState("Ready to dominate?");
   const [feedback, setFeedback] = useState("");
+  const [startLoadingKey, setStartLoadingKey] = useState(0);
+  const [showStartButton, setShowStartButton] = useState(false);
   const [rallyCount, setRallyCount] = useState(0);
   const [currentAnimDuration, setCurrentAnimDuration] = useState(0);
   const [ballTimingFunction, setBallTimingFunction] = useState(PRE_BOUNCE_TIMING);
@@ -131,6 +134,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   useEffect(() => {
     currentAiPosRef.current = aiPos;
   }, [aiPos]);
+
+  useEffect(() => {
+    if (gameState.status !== GameStatus.START) return;
+    setStartLoadingKey(prev => prev + 1);
+    setShowStartButton(false);
+    const timer = setTimeout(() => setShowStartButton(true), 2000);
+    return () => clearTimeout(timer);
+  }, [gameState.status]);
 
   useEffect(() => {
     if (!onMatchEnd) return;
@@ -1469,20 +1480,27 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         <div className="absolute top-6 right-6 z-40 pointer-events-auto">
           <button
             type="button"
-            onClick={onExit}
+            onClick={() => {
+              if (window.confirm('Leave the game? You will forfeit this match.')) {
+                onExit();
+              }
+            }}
             className="px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
           >
-            Back To Shop
+            Leave
           </button>
         </div>
       )}
 
       <div className="absolute bottom-6 left-6 z-30 pointer-events-none">
-        <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] mb-2 italic text-white drop-shadow-2xl">ACE MASTER</h1>
-        <div className="h-16 flex items-center justify-start">
-          <p className="text-slate-400 text-[10px] font-orbitron uppercase tracking-widest text-left px-6 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm italic">
-            {commentary}
-          </p>
+        <div className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 backdrop-blur-md">
+          <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">Tournament</div>
+          <div className="mt-1 text-xl font-orbitron font-black uppercase tracking-[0.18em] text-white">
+            {tournamentName || 'Exhibition'}
+          </div>
+          <div className="mt-2 text-[10px] font-orbitron uppercase tracking-widest text-slate-300">
+            {tournamentRound || 'Match'}
+          </div>
         </div>
       </div>
 
@@ -1690,16 +1708,76 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       {/* Start/GameOver Screens */}
       {(gameState.status === GameStatus.START || gameState.status === GameStatus.GAME_OVER) && (
         <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center p-12 text-center">
-          <h2 className="text-8xl font-orbitron font-black mb-8 italic tracking-tighter bg-gradient-to-b from-white to-slate-500 bg-clip-text text-transparent">
-            {gameState.status === GameStatus.START ? "PRO TENNIS" : (gameState.player.score > gameState.opponent.score ? "CHAMPION" : "DEFEAT")}
+          <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+            {gameState.status === GameStatus.START ? (tournamentName || 'Pro Tennis') : 'Match Result'}
+          </div>
+          <h2 className="mt-2 text-3xl font-orbitron font-black mb-6 uppercase tracking-[0.3em] text-white">
+            {gameState.status === GameStatus.START ? (tournamentRound || 'Round of 16') : (gameState.player.score > gameState.opponent.score ? "CHAMPION" : "DEFEAT")}
           </h2>
+
+          {gameState.status === GameStatus.START && (
+            <div className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/5 px-8 py-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-8 items-center">
+                <div className="flex flex-col gap-4 text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0 text-right">
+                      <div className="text-[10px] uppercase tracking-widest text-slate-400">You</div>
+                      <div className="text-xl font-orbitron uppercase tracking-widest text-white">{playerLabel}</div>
+                    </div>
+                    <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-white/20 bg-black/30">
+                      {playerPortrait ? (
+                        <img src={playerPortrait} alt={`${playerLabel} portrait`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs font-orbitron">YOU</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <div className="text-4xl font-orbitron font-black uppercase tracking-[0.3em] text-white/80">VS</div>
+                </div>
+
+                <div className="flex flex-col gap-4 text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-white/20 bg-black/30">
+                      {opponentPortrait ? (
+                        <img src={opponentPortrait} alt={`${opponentLabel} portrait`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs font-orbitron">AI</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-slate-400">Opponent</div>
+                      <div className="text-lg font-orbitron uppercase tracking-widest text-white">{opponentLabel}</div>
+                      <div className="mt-1 text-[9px] uppercase tracking-widest text-slate-400">{aiProfile.name}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6">
+                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    key={startLoadingKey}
+                    className="h-full bg-gradient-to-r from-emerald-400 via-sky-400 to-purple-400"
+                    style={{ width: '0%', animation: 'matchLoad 2s linear forwards' }}
+                  />
+                </div>
+                <div className="mt-2 text-[9px] uppercase tracking-widest text-slate-500">
+                  Warming up...
+                </div>
+              </div>
+            </div>
+          )}
           
-          <button 
-            onClick={startGame}
-            className="group relative px-24 py-10 bg-white text-slate-950 font-orbitron text-4xl font-black rounded-full transition-all hover:scale-110 active:scale-95 shadow-[0_0_80px_rgba(255,255,255,0.2)]"
-          >
-            <span className="relative z-10">{gameState.status === GameStatus.START ? "START MATCH" : "REMATCH"}</span>
-          </button>
+          {gameState.status !== GameStatus.START || showStartButton ? (
+            <button 
+              onClick={startGame}
+              className="group relative px-12 py-5 bg-white text-slate-950 font-orbitron text-xl font-black rounded-full transition-all hover:scale-105 active:scale-95 shadow-[0_0_60px_rgba(255,255,255,0.2)]"
+            >
+              <span className="relative z-10">{gameState.status === GameStatus.START ? "START MATCH" : "REMATCH"}</span>
+            </button>
+          ) : null}
           
           <div className="mt-12 text-slate-400 font-orbitron text-sm tracking-widest flex flex-col gap-2">
             <p>ARROWS: MOVE</p>
@@ -1707,6 +1785,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           </div>
         </div>
       )}
+      <style>{`
+        @keyframes matchLoad {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 };

@@ -100,6 +100,8 @@ export type PlayerProfile = {
   portraitId?: string;
   aiProfileId?: string;
   rankingPoints: number;
+  tournamentRankingPoints?: Record<string, number>;
   loadout: Loadout;
   minShotTier: ShopItem['tier'];
+  tournamentWins?: Record<string, number>;
 };

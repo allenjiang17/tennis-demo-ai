@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CourtSurface, PlayerProfile } from '../types';
 import { PORTRAITS } from '../data/portraits';
 
@@ -15,6 +15,7 @@ type TournamentDef = {
   surface: CourtSurface;
   rankingPoints: number[];
   rankingGate: { maxRank: number; minPoints?: number };
+  block: number;
 };
 
 type TournamentMatch = {
@@ -43,6 +44,7 @@ type TournamentsProps = {
   tournamentState: TournamentState | null;
   nextMatchId: string | null;
   players: PlayerProfile[];
+  playerTournamentWins: Record<string, number>;
   playerRank: number;
   playerPoints: number;
   onSelectTournament: (tournamentId: string) => void;
@@ -59,12 +61,13 @@ const categoryStyles: Record<TournamentCategory, { bg: string; text: string; bor
 };
 
 const formatRound = (round: number) => {
-  if (round === 1) return 'Quarterfinals';
-  if (round === 2) return 'Semifinals';
+  if (round === 1) return 'Round of 16';
+  if (round === 2) return 'Quarterfinals';
+  if (round === 3) return 'Semifinals';
   return 'Final';
 };
 
-const categoryOrder: TournamentCategory[] = ['itf', 'pro', 'elite', 'grand-slam'];
+const categoryOrder: TournamentCategory[] = ['grand-slam', 'elite', 'pro', 'itf'];
 const categoryMeta: Record<TournamentCategory, { title: string; subtitle: string }> = {
   itf: { title: 'ITF Circuit', subtitle: 'Open entry events for rising prospects' },
   pro: { title: 'Pro Series', subtitle: 'ATP 250–500 level events' },
@@ -77,6 +80,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
   tournamentState,
   nextMatchId,
   players,
+  playerTournamentWins,
   playerRank,
   playerPoints,
   onSelectTournament,
@@ -85,6 +89,11 @@ const Tournaments: React.FC<TournamentsProps> = ({
   onBack,
 }) => {
   const playersById = new Map(players.map(player => [player.id, player]));
+  const nextMatch = useMemo(() => (
+    tournamentState && nextMatchId
+      ? tournamentState.rounds.flat().find(match => match.id === nextMatchId) || null
+      : null
+  ), [nextMatchId, tournamentState]);
   const resolvePlayerId = (playerId: string | null) => {
     if (!playerId) return null;
     if (playersById.has(playerId)) return playerId;
@@ -119,7 +128,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
       <div className="relative z-10 max-w-6xl mx-auto px-8 py-10 pb-20 min-h-full">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">ACE MASTER</h1>
+            <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">Neon Slam</h1>
             <p className="text-xs font-orbitron uppercase tracking-widest text-slate-400 mt-2">
               Tournaments
             </p>
@@ -154,10 +163,16 @@ const Tournaments: React.FC<TournamentsProps> = ({
                   {categoryTournaments.map(tournament => {
                     const style = categoryStyles[tournament.category];
                     const eligible = isEligible(tournament);
+                    const wins = playerTournamentWins[tournament.id] ?? 0;
                     return (
-                      <div
+                      <button
                         key={tournament.id}
-                        className={`rounded-2xl border px-6 py-6 ${style.bg} ${style.border}`}
+                        type="button"
+                        disabled={!eligible}
+                        onClick={() => onSelectTournament(tournament.id)}
+                        className={`rounded-2xl border px-6 py-6 text-left transition-all ${style.bg} ${style.border} ${
+                          eligible ? 'hover:scale-[1.01] cursor-pointer' : 'opacity-70 cursor-not-allowed'
+                        }`}
                       >
                         {tournament.image && (
                           <div className="mb-4 h-28 w-full overflow-hidden rounded-xl border border-white/10 bg-black/30">
@@ -174,15 +189,11 @@ const Tournaments: React.FC<TournamentsProps> = ({
                         <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
                           {tournament.description}
                         </div>
-                        <div className="mt-4 space-y-2 text-[10px] uppercase tracking-widest text-slate-300">
-                          {tournament.prizes.map((prize, index) => (
-                            <div key={`${tournament.id}-${index}`} className="bg-black/30 rounded-full px-3 py-1">
-                              {formatRound(index + 1)} • {prize} credits
-                            </div>
-                          ))}
-                          <div className={`rounded-full px-3 py-1 border ${style.bg} ${style.text} ${style.border}`}>
-                            Champion Bonus • {tournament.championBonus ?? 0} credits
-                          </div>
+                        <div className="mt-4 flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-300">
+                          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 border ${style.bg} ${style.text} ${style.border}`}>
+                            <span aria-hidden>🏆</span>
+                            {wins > 0 ? `${wins}x Champion` : 'No titles yet'}
+                          </span>
                         </div>
                         <div className="mt-4 text-[9px] uppercase tracking-widest text-slate-400">
                           {tournament.rankingGate.maxRank === Number.POSITIVE_INFINITY
@@ -197,19 +208,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
                             Rank too low to enter
                           </div>
                         )}
-                        <button
-                          type="button"
-                          disabled={!eligible}
-                          onClick={() => onSelectTournament(tournament.id)}
-                          className={`mt-5 w-full px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 transition-all ${
-                            eligible
-                              ? 'bg-white/10 text-white/90 hover:bg-white/20'
-                              : 'bg-white/5 text-white/40 cursor-not-allowed'
-                          }`}
-                        >
-                          Enter Tournament
-                        </button>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -219,12 +218,22 @@ const Tournaments: React.FC<TournamentsProps> = ({
         </div>
       ) : (
         <div className="mt-10 space-y-6">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-5">
-            <div className="flex items-center justify-between">
+          {(() => {
+            const roundOf16Complete = tournamentState.rounds[0]?.every(match => match.winnerId);
+            const roundOffset = roundOf16Complete ? 1 : 0;
+            const roundsToShow = tournamentState.rounds.slice(roundOffset);
+            const gridColsClass = roundOf16Complete ? 'md:grid-cols-3' : 'md:grid-cols-4';
+            return (
+              <>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-sm font-orbitron uppercase tracking-widest">{tournamentState.name}</div>
+                <div className="text-[10px] uppercase tracking-widest text-slate-400">Tournament</div>
+                <div className="mt-2 text-2xl font-orbitron font-black uppercase tracking-[0.2em] text-white">
+                  {tournamentState.name}
+                </div>
                 <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
-                  Category: {tournamentState.category} • Surface: {tournamentState.surface} • Champion Bonus: {tournamentState.championBonus ?? 0} credits
+                  {formatRound(nextMatch?.round ?? 1)} • {tournamentState.surface} • Champion Bonus {tournamentState.championBonus ?? 0}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -248,11 +257,11 @@ const Tournaments: React.FC<TournamentsProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {tournamentState.rounds.map((round, roundIndex) => (
-              <div key={`round-${roundIndex}`} className="space-y-3">
+          <div className={`grid grid-cols-1 ${gridColsClass} gap-6`}>
+            {roundsToShow.map((round, roundIndex) => (
+              <div key={`round-${roundIndex + roundOffset}`} className="space-y-3">
                 <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
-                  {formatRound(roundIndex + 1)}
+                  {formatRound(roundIndex + 1 + roundOffset)}
                 </div>
                 {round.map(match => (
                   <div
@@ -292,6 +301,9 @@ const Tournaments: React.FC<TournamentsProps> = ({
               </div>
             ))}
           </div>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

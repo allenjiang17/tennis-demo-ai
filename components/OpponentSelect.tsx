@@ -23,7 +23,7 @@ const OpponentSelect: React.FC<OpponentSelectProps> = ({
     <div className="relative z-10 max-w-5xl mx-auto px-8 py-10 pb-20 min-h-full">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">ACE MASTER</h1>
+          <h1 className="text-4xl font-orbitron font-black tracking-[0.3em] italic">Neon Slam</h1>
           <p className="text-xs font-orbitron uppercase tracking-widest text-slate-400 mt-2">
             Select Opponent
           </p>

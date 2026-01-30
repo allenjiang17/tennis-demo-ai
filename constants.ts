@@ -15,7 +15,7 @@ export const PHYSICS = {
   }
 };
 
-export const STARTING_CREDITS = 100;
+export const STARTING_CREDITS = 400;
 
 export const MESSAGES = {
   [ShotQuality.PERFECT]: "CRUSHED IT! 🔥",
