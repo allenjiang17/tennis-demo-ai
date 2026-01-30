@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import Game from './Game';
 import Shop from './components/Shop';
 import OpponentSelect from './components/OpponentSelect';
@@ -68,6 +68,7 @@ type TournamentDef = {
   category: TournamentCategory;
   description: string;
   prizes: number[];
+  championBonus: number;
   image?: string;
   surface: CourtSurface;
   rankingPoints: number[];
@@ -91,6 +92,7 @@ type TournamentState = {
   tier: DifficultyTier;
   category: TournamentCategory;
   prizes: number[];
+  championBonus: number;
   surface: CourtSurface;
   rankingPoints: number[];
   rankingGate: RankingGate;
@@ -113,6 +115,9 @@ const STORAGE_KEYS = {
   ownedIds: 'tennis.ownedIds',
   loadout: 'tennis.loadout',
   players: 'tennis.players',
+  matchesPlayed: 'tennis.matchesPlayed',
+  shopStock: 'tennis.shopStock',
+  shopStockCycle: 'tennis.shopStockCycle',
 } as const;
 
 const loadFromStorage = <T,>(key: string, fallback: T): T => {
@@ -125,6 +130,7 @@ const loadFromStorage = <T,>(key: string, fallback: T): T => {
     return fallback;
   }
 };
+const SHOP_STOCK_SIZE = 3;
 const RANKING_POINTS_BY_TIER: Record<DifficultyTier, number[]> = {
   amateur: [20, 50, 110],
   pro: [80, 180, 360],
@@ -145,7 +151,8 @@ const TOURNAMENTS: TournamentDef[] = [
     category: 'itf',
     description: 'Hard-court grind in Tunisia.',
     surface: 'hardcourt',
-    prizes: [100, 250, 600],
+    prizes: [10, 10, 10],
+    championBonus: 50,
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
@@ -156,7 +163,8 @@ const TOURNAMENTS: TournamentDef[] = [
     category: 'itf',
     description: 'Desert heat and fast courts.',
     surface: 'hardcourt',
-    prizes: [120, 280, 650],
+    prizes: [10, 10, 10],
+    championBonus: 50,
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
@@ -167,7 +175,8 @@ const TOURNAMENTS: TournamentDef[] = [
     category: 'itf',
     description: 'Coastal wind and long rallies.',
     surface: 'hardcourt',
-    prizes: [120, 300, 700],
+    prizes: [10, 10, 10],
+    championBonus: 50,
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
@@ -178,7 +187,8 @@ const TOURNAMENTS: TournamentDef[] = [
     category: 'itf',
     description: 'Clay court tests and tight margins.',
     surface: 'clay',
-    prizes: [150, 350, 800],
+    prizes: [10, 10, 10],
+    championBonus: 50,
     rankingPoints: RANKING_POINTS_BY_TIER.amateur,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
@@ -190,7 +200,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'ATP 250 on fast hard courts.',
     image: '/tournaments/smalltournament.png',
     surface: 'hardcourt',
-    prizes: [500, 1200, 3000],
+    prizes: [20, 20, 20],
+    championBonus: 100,
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
@@ -202,7 +213,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'ATP 500 under the lights.',
     image: '/tournaments/smalltournament.png',
     surface: 'hardcourt',
-    prizes: [650, 1500, 3600],
+    prizes: [20, 20, 20],
+    championBonus: 100,
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
@@ -214,7 +226,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Classic clay-court ATP 500.',
     image: '/tournaments/smalltournament.png',
     surface: 'clay',
-    prizes: [700, 1600, 3800],
+    prizes: [20, 20, 20],
+    championBonus: 100,
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
@@ -226,7 +239,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Grass-court warmup in London.',
     image: '/tournaments/smalltournament.png',
     surface: 'grass',
-    prizes: [650, 1500, 3600],
+    prizes: [20, 20, 20],
+    championBonus: 100,
     rankingPoints: RANKING_POINTS_BY_TIER.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
@@ -238,7 +252,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Masters 1000 in the desert.',
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
-    prizes: [1500, 4000, 10000],
+    prizes: [30, 30, 30],
+    championBonus: 200,
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
@@ -250,7 +265,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Sunshine Swing showdown.',
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
-    prizes: [1500, 4200, 10500],
+    prizes: [30, 30, 30],
+    championBonus: 200,
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
@@ -262,7 +278,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Fast hard-court Masters 1000.',
     image: '/tournaments/hardcourt.png',
     surface: 'hardcourt',
-    prizes: [1600, 4500, 11000],
+    prizes: [30, 30, 30],
+    championBonus: 200,
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
@@ -274,7 +291,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'Clay-court Grand Slam in Paris.',
     image: '/tournaments/claycourt.png',
     surface: 'clay',
-    prizes: [2000, 6000, 15000],
+    prizes: [50, 50, 50],
+    championBonus: 400,
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
@@ -286,7 +304,8 @@ const TOURNAMENTS: TournamentDef[] = [
     description: 'The Championships on grass.',
     image: '/tournaments/wimbledon.png',
     surface: 'grass',
-    prizes: [2000, 6000, 15000],
+    prizes: [50, 50, 50],
+    championBonus: 400,
     rankingPoints: RANKING_POINTS_BY_TIER.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
@@ -322,6 +341,9 @@ const createInitialPlayers = (): PlayerProfile[] => {
 const App: React.FC = () => {
   const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings' | 'settings'>('menu');
   const [wallet, setWallet] = useState(() => loadFromStorage<number>(STORAGE_KEYS.wallet, STARTING_CREDITS));
+  const [matchesPlayed, setMatchesPlayed] = useState(() => loadFromStorage<number>(STORAGE_KEYS.matchesPlayed, 0));
+  const [shopStockCycle, setShopStockCycle] = useState(() => loadFromStorage<number>(STORAGE_KEYS.shopStockCycle, 0));
+  const [shopStock, setShopStock] = useState(() => loadFromStorage<string[]>(STORAGE_KEYS.shopStock, []));
   const [ownedIds, setOwnedIds] = useState<Set<string>>(() => {
     const stored = loadFromStorage<string[] | null>(STORAGE_KEYS.ownedIds, null);
     if (!stored) {
@@ -372,7 +394,10 @@ const App: React.FC = () => {
     window.localStorage.setItem(STORAGE_KEYS.ownedIds, JSON.stringify(Array.from(ownedIds)));
     window.localStorage.setItem(STORAGE_KEYS.loadout, JSON.stringify(loadout));
     window.localStorage.setItem(STORAGE_KEYS.players, JSON.stringify(players));
-  }, [loadout, ownedIds, players, wallet]);
+    window.localStorage.setItem(STORAGE_KEYS.matchesPlayed, JSON.stringify(matchesPlayed));
+    window.localStorage.setItem(STORAGE_KEYS.shopStock, JSON.stringify(shopStock));
+    window.localStorage.setItem(STORAGE_KEYS.shopStockCycle, JSON.stringify(shopStockCycle));
+  }, [loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, wallet]);
   const rankedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
@@ -422,33 +447,113 @@ const App: React.FC = () => {
     [loadout]
   );
 
+  const shopItemsById = useMemo(() => new Map(SHOP_ITEMS.map(item => [item.id, item])), []);
+
+  const rollStockTier = useCallback(() => {
+    const roll = Math.random() * 100;
+    if (roll < 50) return 'amateur';
+    if (roll < 80) return 'pro';
+    if (roll < 95) return 'elite';
+    return 'legendary';
+  }, []);
+
+  const generateShopStock = useCallback(() => {
+    const ids: string[] = [];
+    const nonUniqueItems = SHOP_ITEMS.filter(item => item.tier !== 'unique');
+    if (nonUniqueItems.length === 0) return ids;
+    for (let i = 0; i < SHOP_STOCK_SIZE; i += 1) {
+      let nextId = '';
+      let attempts = 0;
+      while (!nextId && attempts < 20) {
+        const tier = rollStockTier();
+        const tierItems = nonUniqueItems.filter(item => item.tier === tier && !ids.includes(item.id));
+        const pool = tierItems.length > 0 ? tierItems : nonUniqueItems.filter(item => !ids.includes(item.id));
+        if (pool.length === 0) break;
+        nextId = pool[Math.floor(Math.random() * pool.length)].id;
+        attempts += 1;
+      }
+      if (nextId) ids.push(nextId);
+    }
+    return ids;
+  }, [rollStockTier]);
+
+  const getStockCycle = useCallback((count: number) => Math.floor(count / 10), []);
+
+  useEffect(() => {
+    const valid = shopStock.length === SHOP_STOCK_SIZE && shopStock.every(id => {
+      const item = shopItemsById.get(id);
+      return item && item.tier !== 'unique';
+    });
+    const expectedCycle = getStockCycle(matchesPlayed);
+    if (!valid) {
+      setShopStock(generateShopStock());
+      setShopStockCycle(expectedCycle);
+      return;
+    }
+    if (shopStockCycle !== expectedCycle) {
+      setShopStock(generateShopStock());
+      setShopStockCycle(expectedCycle);
+    }
+  }, [generateShopStock, getStockCycle, matchesPlayed, shopItemsById, shopStock, shopStockCycle]);
+
+  const shopStockItems = useMemo(
+    () => shopStock.map(id => shopItemsById.get(id)).filter(Boolean) as ShopItem[],
+    [shopItemsById, shopStock]
+  );
+
   const rollTier = (): ShopItem['tier'] => {
     const roll = Math.random() * 100;
     if (roll < 40) return 'amateur';
     if (roll < 70) return 'pro';
-    if (roll < 90) return 'legendary';
-    if (roll < 98) return 'elite';
+    if (roll < 90) return 'elite';
+    if (roll < 98) return 'legendary';
     return 'unique';
   };
 
-  const pickRandomItem = (shot: ShotType): ShopItem | null => {
-    const tier = rollTier();
+  const rollPremiumTier = (): ShopItem['tier'] => {
+    const roll = Math.random() * 100;
+    if (roll < 40) return 'pro';
+    if (roll < 70) return 'elite';
+    if (roll < 90) return 'legendary';
+    return 'unique';
+  };
+
+  const pickRandomItem = (shot: ShotType, premium = false): ShopItem | null => {
+    const tier = premium ? rollPremiumTier() : rollTier();
     const tierItems = SHOP_ITEMS.filter(item => item.shot === shot && item.tier === tier);
     const pool = tierItems.length > 0 ? tierItems : SHOP_ITEMS.filter(item => item.shot === shot);
     if (pool.length === 0) return null;
     return pool[Math.floor(Math.random() * pool.length)];
   };
 
-  const handleBuyBox = (shot: ShotType) => {
-    const price = boxPrices[shot];
+  const handleBuyBox = (shot: ShotType, premium = false) => {
+    const price = premium ? boxPrices[shot] * 2 : boxPrices[shot];
     if (wallet < price) return;
-    const item = pickRandomItem(shot);
+    const item = pickRandomItem(shot, premium);
     if (!item) return;
     setWallet(prev => prev - price);
     setOwnedIds(prev => new Set([...Array.from(prev), item.id]));
     setPendingBox({ item, alreadyOwned: ownedIds.has(item.id) });
     setScreen('box-open');
   };
+
+  const handleBuyStockItem = (item: ShopItem) => {
+    if (wallet < item.price) return;
+    setWallet(prev => prev - item.price);
+    setOwnedIds(prev => new Set([...Array.from(prev), item.id]));
+  };
+
+  const handleMatchCompleted = useCallback(() => {
+    setMatchesPlayed(prev => {
+      const next = prev + 1;
+      const nextCycle = getStockCycle(next);
+      if (nextCycle !== shopStockCycle) {
+        setShopStock(generateShopStock());
+        setShopStockCycle(nextCycle);
+      }
+      return next;
+    });
+  }, [generateShopStock, getStockCycle, shopStockCycle]);
 
   const handleEquip = (item: ShopItem, slot: keyof Loadout) => {
     if (!ownedIds.has(item.id)) return;
@@ -603,6 +708,7 @@ const App: React.FC = () => {
       tier: tournament.tier,
       category: tournament.category,
       prizes: tournament.prizes,
+      championBonus: tournament.championBonus,
       surface: tournament.surface,
       rankingPoints: tournament.rankingPoints,
       rankingGate: tournament.rankingGate,
@@ -700,6 +806,7 @@ const App: React.FC = () => {
         playerName={playerName}
         onExit={() => setScreen(tournamentState ? 'tournaments' : 'player')}
         onMatchEnd={winner => {
+          handleMatchCompleted();
           if (!tournamentState || !pendingTournamentMatchId) {
             setScreen('player');
             return;
@@ -732,12 +839,17 @@ const App: React.FC = () => {
               simulateTournamentToEnd(updated, match.round);
             }
             if (updated.rounds[2][0].winnerId === PLAYER_ID) updated.status = 'champion';
+            const championBonus = updated.status === 'champion' && winner === 'player' ? updated.championBonus : 0;
+            if (championBonus > 0) {
+              setWallet(prevWallet => prevWallet + championBonus);
+              setTournamentEarnings(prevEarned => prevEarned + championBonus);
+            }
             if (updated.status !== 'active') {
               const addedPrize = winner === 'player' ? updated.prizes[match.round - 1] : 0;
               resultToShow = {
                 outcome: updated.status === 'champion' ? 'champion' : 'eliminated',
                 tournamentName: updated.name,
-                earnings: tournamentEarnings + addedPrize,
+                earnings: tournamentEarnings + addedPrize + championBonus,
               };
               simulateTournamentToEnd(updated, match.round);
               rankingAwards = collectRankingAwards(updated);
@@ -879,6 +991,10 @@ const App: React.FC = () => {
         wallet={wallet}
         boxPrices={boxPrices}
         ownedCounts={ownedCounts}
+        stockItems={shopStockItems}
+        ownedIds={ownedIds}
+        matchesUntilRefresh={10 - (matchesPlayed % 10)}
+        onBuyStockItem={handleBuyStockItem}
         onBuyBox={handleBuyBox}
         onBack={() => setScreen('menu')}
         onPlayerPage={() => setScreen('player')}

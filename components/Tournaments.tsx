@@ -10,6 +10,7 @@ type TournamentDef = {
   category: TournamentCategory;
   description: string;
   prizes: number[];
+  championBonus: number;
   image?: string;
   surface: CourtSurface;
   rankingPoints: number[];
@@ -31,6 +32,7 @@ type TournamentState = {
   tier: 'amateur' | 'pro' | 'elite';
   category: TournamentCategory;
   prizes: number[];
+  championBonus: number;
   surface: CourtSurface;
   status: 'active' | 'eliminated' | 'champion';
   rounds: TournamentMatch[][];
@@ -178,6 +180,9 @@ const Tournaments: React.FC<TournamentsProps> = ({
                               {formatRound(index + 1)} • {prize} credits
                             </div>
                           ))}
+                          <div className={`rounded-full px-3 py-1 border ${style.bg} ${style.text} ${style.border}`}>
+                            Champion Bonus • {tournament.championBonus ?? 0} credits
+                          </div>
                         </div>
                         <div className="mt-4 text-[9px] uppercase tracking-widest text-slate-400">
                           {tournament.rankingGate.maxRank === Number.POSITIVE_INFINITY
@@ -219,7 +224,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
               <div>
                 <div className="text-sm font-orbitron uppercase tracking-widest">{tournamentState.name}</div>
                 <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
-                  Category: {tournamentState.category} • Status: {tournamentState.status}
+                  Category: {tournamentState.category} • Surface: {tournamentState.surface} • Champion Bonus: {tournamentState.championBonus ?? 0} credits
                 </div>
               </div>
               <div className="flex items-center gap-2">
