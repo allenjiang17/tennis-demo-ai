@@ -145,14 +145,17 @@ const Career: React.FC<CareerProps> = ({
                   {tournament.description}
                 </div>
                 <div className="mt-4 space-y-2 text-[10px] uppercase tracking-widest text-slate-300">
-                  {tournament.prizes.map((prize, index) => (
-                    <div key={`${tournament.id}-${index}`} className="bg-black/30 rounded-full px-3 py-1">
-                      {formatRound(index + 2)} • {prize} credits
-                    </div>
-                  ))}
-                  <div className={`rounded-full px-3 py-1 border ${style.bg} ${style.text} ${style.border}`}>
-                    Champion Bonus • {tournament.championBonus ?? 0} credits
-                  </div>
+                  {tournament.prizes.map((prize, index) => {
+                    const isFinal = index === tournament.prizes.length - 1;
+                    return (
+                      <div
+                        key={`${tournament.id}-${index}`}
+                        className={`rounded-full px-3 py-1 ${isFinal ? `${style.bg} ${style.text} ${style.border} border` : 'bg-black/30'}`}
+                      >
+                        {formatRound(index + 1)} • {prize} credits
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="mt-4 text-[9px] uppercase tracking-widest text-slate-400">
                   Surface: {tournament.surface} • {tournament.rankingGate.maxRank === Number.POSITIVE_INFINITY

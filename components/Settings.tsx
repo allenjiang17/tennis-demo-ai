@@ -1,10 +1,12 @@
 import React from 'react';
 
 type SettingsProps = {
+  aiDifficulty: 'easy' | 'medium' | 'hard';
+  onAiDifficultyChange: (value: 'easy' | 'medium' | 'hard') => void;
   onBack: () => void;
 };
 
-const Settings: React.FC<SettingsProps> = ({ onBack }) => {
+const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange, onBack }) => {
   const handleReset = () => {
     Object.keys(window.localStorage)
       .filter(key => key.startsWith('tennis.'))
@@ -33,6 +35,31 @@ const Settings: React.FC<SettingsProps> = ({ onBack }) => {
       </div>
 
       <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
+        <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
+          AI Difficulty
+        </div>
+        <div className="mt-3 text-[10px] uppercase tracking-widest text-slate-500">
+          Easy reduces AI stats by 30%. Hard increases AI stats by 15%.
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          {(['easy', 'medium', 'hard'] as const).map(level => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => onAiDifficultyChange(level)}
+              className={`px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
+                aiDifficulty === level
+                  ? 'border-emerald-300/70 text-emerald-200 bg-emerald-500/10'
+                  : 'border-white/20 text-white/70 bg-white/5 hover:bg-white/10'
+              }`}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
         <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
           Reset Data
         </div>

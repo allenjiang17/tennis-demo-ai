@@ -11,7 +11,7 @@ import Tournaments from './components/Tournaments';
 import TournamentResult from './components/TournamentResult';
 import Career from './components/Career';
 import BlockSummary from './components/BlockSummary';
-import { AiProfile, CourtSurface, Loadout, PlayerProfile, PlayerStats, ShopItem, ShotType } from './types';
+import { AiProfile, CourtSurface, Loadout, PlayerProfile, PlayerStats, ShopItem, ShotType, TournamentCategory } from './types';
 import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
 import { PORTRAITS } from './data/portraits';
@@ -122,6 +122,46 @@ const applyAiProfileModifiers = (stats: PlayerStats, profileId?: string): Player
   return next;
 };
 
+const applyAiDifficultyModifier = (stats: PlayerStats, difficulty: DifficultySetting): PlayerStats => {
+  const multiplier = difficulty === 'easy' ? 0.7 : difficulty === 'hard' ? 1.15 : 1;
+  if (multiplier === 1) return stats;
+  const scale = (value: number) => Math.max(0, Math.round(value * multiplier));
+  return {
+    serveFirst: {
+      power: scale(stats.serveFirst.power),
+      spin: scale(stats.serveFirst.spin),
+      control: scale(stats.serveFirst.control),
+      shape: scale(stats.serveFirst.shape),
+    },
+    serveSecond: {
+      power: scale(stats.serveSecond.power),
+      spin: scale(stats.serveSecond.spin),
+      control: scale(stats.serveSecond.control),
+      shape: scale(stats.serveSecond.shape),
+    },
+    forehand: {
+      power: scale(stats.forehand.power),
+      spin: scale(stats.forehand.spin),
+      control: scale(stats.forehand.control),
+      shape: scale(stats.forehand.shape),
+    },
+    backhand: {
+      power: scale(stats.backhand.power),
+      spin: scale(stats.backhand.spin),
+      control: scale(stats.backhand.control),
+      shape: scale(stats.backhand.shape),
+    },
+    volley: {
+      control: scale(stats.volley.control),
+      accuracy: scale(stats.volley.accuracy),
+    },
+    athleticism: {
+      speed: scale(stats.athleticism.speed),
+      stamina: scale(stats.athleticism.stamina),
+    },
+  };
+};
+
 type DifficultyTier = 'amateur' | 'pro' | 'elite';
 type TournamentCategory = 'itf' | 'pro' | 'elite' | 'grand-slam';
 
@@ -175,6 +215,7 @@ type TournamentResultState = {
   tournamentName: string;
   earnings: number;
 };
+type DifficultySetting = 'easy' | 'medium' | 'hard';
 type RankingAward = {
   playerId: string;
   points: number;
@@ -199,6 +240,7 @@ const STORAGE_KEYS = {
   shopStockCycle: 'tennis.shopStockCycle',
   careerBlock: 'tennis.careerBlock',
   careerBlockResolved: 'tennis.careerBlockResolved',
+  aiDifficulty: 'tennis.aiDifficulty',
 } as const;
 
 const loadFromStorage = <T,>(key: string, fallback: T): T => {
@@ -212,11 +254,29 @@ const loadFromStorage = <T,>(key: string, fallback: T): T => {
   }
 };
 const SHOP_STOCK_SIZE = 3;
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const getBiasedWinChance = (p1Total: number, p2Total: number) => {
+  if (p1Total + p2Total === 0) return 0.5;
+  const raw = p1Total / (p1Total + p2Total);
+  const exponent = 7;
+  const p1 = Math.max(0.001, Math.min(0.999, raw));
+  const odds = p1 / (1 - p1);
+  const skewed = Math.pow(odds, exponent);
+  return skewed / (1 + skewed);
+};
 const RANKING_POINTS_BY_CATEGORY: Record<TournamentCategory, number[]> = {
-  itf: [10, 20, 40, 80],
-  pro: [20, 40, 80, 160],
-  elite: [40, 80, 160, 320],
-  'grand-slam': [80, 160, 320, 640],
+  itf: [0, 10, 20, 40, 80],
+  pro: [0, 20, 40, 80, 160],
+  elite: [0, 40, 80, 160, 320],
+  'grand-slam': [0, 80, 160, 320, 640],
 };
 const RANKING_GATES_BY_CATEGORY: Record<TournamentCategory, RankingGate> = {
   itf: { maxRank: Number.POSITIVE_INFINITY },
@@ -287,17 +347,184 @@ const TOURNAMENTS: TournamentDef[] = CAREER_TOURNAMENT_DATA.map(tournament =>
   buildCareerTournament(tournament)
 );
 
+const seedTournamentResults = (players: PlayerProfile[]): PlayerProfile[] => {
+  const seedRankOrder = players
+    .slice()
+    .sort((a, b) => (b.seedRanking ?? b.rankingPoints) - (a.seedRanking ?? a.rankingPoints) || a.name.localeCompare(b.name))
+    .map(player => player.id);
+  const seedRankById = new Map(seedRankOrder.map((id, index) => [id, index + 1]));
+  const seeded = players.map(player => ({
+    ...player,
+    tournamentRankingPoints: {},
+    rankingPoints: 0,
+  }));
+  const byId = new Map(seeded.map(player => [player.id, player]));
+  const blockAssignments = new Map<number, Set<string>>();
+  const shuffleIds = (ids: string[]) => {
+    const copy = ids.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+  const isEligibleForCategory = (seedRank: number, category: TournamentCategory) => {
+    if (category === 'itf') return seedRank >= 64 && seedRank <= 117;
+    if (category === 'pro') return seedRank >= 32 && seedRank <= 80;
+    if (category === 'elite') return seedRank <= 64;
+    if (category === 'grand-slam') return seedRank <= 32;
+    return false;
+  };
+  const eligibleByCategory = new Map<TournamentCategory, string[]>();
+  const poolByCategory = new Map<TournamentCategory, string[]>();
+  TOURNAMENTS.forEach(tournament => {
+    if (eligibleByCategory.has(tournament.category)) return;
+    const eligibleIds = seedRankOrder.filter(playerId => {
+      if (playerId === PLAYER_ID) return false;
+      const seedRank = seedRankById.get(playerId) ?? Number.POSITIVE_INFINITY;
+      return isEligibleForCategory(seedRank, tournament.category);
+    });
+    eligibleByCategory.set(tournament.category, eligibleIds);
+    poolByCategory.set(tournament.category, shuffleIds(eligibleIds));
+  });
+  const getPlayerStatsTotal = (player: PlayerProfile) => {
+    const stats = buildPlayerStats(SHOP_ITEMS, player.loadout);
+    const serveTotal = stats.serveFirst.power + stats.serveFirst.spin + stats.serveFirst.control + stats.serveFirst.shape
+      + stats.serveSecond.power + stats.serveSecond.spin + stats.serveSecond.control + stats.serveSecond.shape;
+    const groundTotal = stats.forehand.power + stats.forehand.spin + stats.forehand.control + stats.forehand.shape
+      + stats.backhand.power + stats.backhand.spin + stats.backhand.control + stats.backhand.shape;
+    const netTotal = stats.volley.control + stats.volley.accuracy;
+    const athleticTotal = stats.athleticism.speed + stats.athleticism.stamina;
+    return serveTotal + groundTotal + netTotal + athleticTotal;
+  };
+
+  const simulateMatch = (playerA: PlayerProfile, playerB: PlayerProfile) => {
+    const p1 = getPlayerStatsTotal(playerA);
+    const p2 = getPlayerStatsTotal(playerB);
+    const bias = getBiasedWinChance(p1, p2);
+    return Math.random() < bias ? playerA : playerB;
+  };
+
+  TOURNAMENTS.forEach(tournament => {
+    const eligibleIds = eligibleByCategory.get(tournament.category) ?? [];
+    if (eligibleIds.length === 0) return;
+    let pool = poolByCategory.get(tournament.category) ?? shuffleIds(eligibleIds);
+    const fieldIds: string[] = [];
+    const usedThisTournament = new Set<string>();
+    let scannedSincePick = 0;
+    let recycled = false;
+
+    while (fieldIds.length < 16) {
+      if (pool.length === 0) {
+        if (recycled) break;
+        pool = shuffleIds(eligibleIds).filter(id => !usedThisTournament.has(id));
+        poolByCategory.set(tournament.category, pool);
+        scannedSincePick = 0;
+        recycled = true;
+        if (pool.length === 0) break;
+      }
+
+      const candidate = pool.shift();
+      if (!candidate) continue;
+      if (usedThisTournament.has(candidate)) continue;
+      const assigned = blockAssignments.get(tournament.block);
+      if (assigned && assigned.has(candidate)) {
+        pool.push(candidate);
+        scannedSincePick += 1;
+        if (scannedSincePick >= pool.length && fieldIds.length < 16) {
+          if (recycled) break;
+          pool = shuffleIds(eligibleIds).filter(id => !usedThisTournament.has(id));
+          poolByCategory.set(tournament.category, pool);
+          scannedSincePick = 0;
+          recycled = true;
+        }
+        continue;
+      }
+
+      fieldIds.push(candidate);
+      usedThisTournament.add(candidate);
+      scannedSincePick = 0;
+    }
+
+    poolByCategory.set(tournament.category, pool);
+    if (fieldIds.length < 16) return;
+    const field = fieldIds.map(id => byId.get(id)).filter(Boolean) as PlayerProfile[];
+    const assigned = blockAssignments.get(tournament.block) ?? new Set<string>();
+    field.forEach(player => assigned.add(player.id));
+    blockAssignments.set(tournament.block, assigned);
+
+    const [r16Points, qfPoints, sfPoints, finalPoints, winnerPoints] = tournament.rankingPoints;
+    const r16Pairs: Array<[PlayerProfile, PlayerProfile]> = [];
+    for (let i = 0; i < field.length; i += 2) {
+      if (field[i + 1]) r16Pairs.push([field[i], field[i + 1]]);
+    }
+    const r16Losers: PlayerProfile[] = [];
+    const qfPlayers: PlayerProfile[] = [];
+    r16Pairs.forEach(pair => {
+      const winner = simulateMatch(pair[0], pair[1]);
+      const loser = winner.id === pair[0].id ? pair[1] : pair[0];
+      qfPlayers.push(winner);
+      r16Losers.push(loser);
+    });
+
+    const qfLosers: PlayerProfile[] = [];
+    const sfPlayers: PlayerProfile[] = [];
+    for (let i = 0; i < qfPlayers.length; i += 2) {
+      if (!qfPlayers[i + 1]) break;
+      const winner = simulateMatch(qfPlayers[i], qfPlayers[i + 1]);
+      const loser = winner.id === qfPlayers[i].id ? qfPlayers[i + 1] : qfPlayers[i];
+      sfPlayers.push(winner);
+      qfLosers.push(loser);
+    }
+
+    const sfLosers: PlayerProfile[] = [];
+    const finalPlayers: PlayerProfile[] = [];
+    for (let i = 0; i < sfPlayers.length; i += 2) {
+      if (!sfPlayers[i + 1]) break;
+      const winner = simulateMatch(sfPlayers[i], sfPlayers[i + 1]);
+      const loser = winner.id === sfPlayers[i].id ? sfPlayers[i + 1] : sfPlayers[i];
+      finalPlayers.push(winner);
+      sfLosers.push(loser);
+    }
+
+    if (finalPlayers.length < 2) return;
+    const winner = simulateMatch(finalPlayers[0], finalPlayers[1]);
+    const finalist = winner.id === finalPlayers[0].id ? finalPlayers[1] : finalPlayers[0];
+
+    const award = (playerId: string, points: number | undefined) => {
+      if (!points || points <= 0) return;
+      const player = byId.get(playerId);
+      if (!player) return;
+      const history = player.tournamentRankingPoints ?? {};
+      history[tournament.id] = points;
+      player.tournamentRankingPoints = history;
+      player.rankingPoints += points;
+    };
+
+    award(winner.id, winnerPoints);
+    award(finalist.id, finalPoints);
+    sfLosers.forEach(player => award(player.id, sfPoints));
+    qfLosers.forEach(player => award(player.id, qfPoints));
+    r16Losers.forEach(player => award(player.id, r16Points));
+  });
+
+  return seeded;
+};
+
 const createInitialPlayers = (): PlayerProfile[] => {
   const fallbackPortraitId = PORTRAITS[0]?.id ?? '';
   const portraitByType = new Map(PORTRAITS.map(portrait => [portrait.name, portrait]));
-    const basePlayers = BASE_PLAYERS.map((player, index) => {
-      const portrait = portraitByType.get(player.portraitType);
-      return {
-        ...player,
-        portraitId: portrait?.id ?? PORTRAITS[index % Math.max(PORTRAITS.length, 1)]?.id ?? fallbackPortraitId,
-        aiProfileId: player.aiProfileId ?? AI_PROFILES[index % Math.max(AI_PROFILES.length, 1)]?.id,
-      };
-    });
+  const basePlayers = BASE_PLAYERS.map((player, index) => {
+    const portrait = portraitByType.get(player.portraitType);
+    return {
+      ...player,
+      seedRanking: player.rankingPoints,
+      rankingPoints: 0,
+      portraitId: portrait?.id ?? PORTRAITS[index % Math.max(PORTRAITS.length, 1)]?.id ?? fallbackPortraitId,
+      aiProfileId: player.aiProfileId ?? AI_PROFILES[index % Math.max(AI_PROFILES.length, 1)]?.id,
+    };
+  });
+  const seededPlayers = seedTournamentResults(basePlayers);
   const defaultPortrait = PORTRAITS[0];
   return [
     {
@@ -312,7 +539,7 @@ const createInitialPlayers = (): PlayerProfile[] => {
       portraitId: fallbackPortraitId,
       tournamentWins: {},
     },
-    ...basePlayers,
+    ...seededPlayers,
   ];
 };
 
@@ -324,6 +551,9 @@ const App: React.FC = () => {
   const [shopStock, setShopStock] = useState(() => loadFromStorage<string[]>(STORAGE_KEYS.shopStock, []));
   const [careerBlock, setCareerBlock] = useState(() => loadFromStorage<number>(STORAGE_KEYS.careerBlock, 1));
   const [careerBlockResolved, setCareerBlockResolved] = useState(() => loadFromStorage<number>(STORAGE_KEYS.careerBlockResolved, 0));
+  const [aiDifficultySetting, setAiDifficultySetting] = useState<DifficultySetting>(() =>
+    loadFromStorage<DifficultySetting>(STORAGE_KEYS.aiDifficulty, 'easy')
+  );
   const [ownedIds, setOwnedIds] = useState<Set<string>>(() => {
     const stored = loadFromStorage<string[] | null>(STORAGE_KEYS.ownedIds, null);
     if (!stored) {
@@ -339,6 +569,7 @@ const App: React.FC = () => {
   const [pendingTournamentMatchId, setPendingTournamentMatchId] = useState<string | null>(null);
   const [tournamentEarnings, setTournamentEarnings] = useState(0);
   const [tournamentResult, setTournamentResult] = useState<TournamentResultState | null>(null);
+  const [blockResultSummary, setBlockResultSummary] = useState<TournamentResultState | null>(null);
   const [players, setPlayers] = useState<PlayerProfile[]>(() => {
     const defaults = createInitialPlayers();
     const stored = loadFromStorage<PlayerProfile[] | null>(STORAGE_KEYS.players, null);
@@ -392,7 +623,8 @@ const App: React.FC = () => {
     window.localStorage.setItem(STORAGE_KEYS.shopStockCycle, JSON.stringify(shopStockCycle));
     window.localStorage.setItem(STORAGE_KEYS.careerBlock, JSON.stringify(careerBlock));
     window.localStorage.setItem(STORAGE_KEYS.careerBlockResolved, JSON.stringify(careerBlockResolved));
-  }, [careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, wallet]);
+    window.localStorage.setItem(STORAGE_KEYS.aiDifficulty, JSON.stringify(aiDifficultySetting));
+  }, [aiDifficultySetting, careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, wallet]);
   const rankedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
@@ -616,24 +848,29 @@ const App: React.FC = () => {
       return basePool.filter(player => {
         if (player.id === PLAYER_ID) return true;
         const rank = rankingsById.get(player.id) ?? Number.POSITIVE_INFINITY;
-        return rank >= 60;
+        return rank >= 64;
       });
     }
     if (tournament.category === 'pro') {
       return basePool.filter(player => {
         if (player.id === PLAYER_ID) return true;
         const rank = rankingsById.get(player.id) ?? Number.POSITIVE_INFINITY;
-        return rank >= 15;
+        return rank >= 32 && rank <= 80;
+      });
+    }
+    if (tournament.category === 'elite') {
+      return basePool.filter(player => {
+        if (player.id === PLAYER_ID) return true;
+        const rank = rankingsById.get(player.id) ?? Number.POSITIVE_INFINITY;
+        return rank <= 64;
       });
     }
     if (tournament.category === 'grand-slam') {
-      const byRank = [...players].sort((a, b) => {
-        const aRank = rankingsById.get(a.id) ?? Number.POSITIVE_INFINITY;
-        const bRank = rankingsById.get(b.id) ?? Number.POSITIVE_INFINITY;
-        if (aRank !== bRank) return aRank - bRank;
-        return a.name.localeCompare(b.name);
+      return basePool.filter(player => {
+        if (player.id === PLAYER_ID) return true;
+        const rank = rankingsById.get(player.id) ?? Number.POSITIVE_INFINITY;
+        return rank <= 32;
       });
-      return byRank.slice(0, 16);
     }
     return basePool;
   };
@@ -679,7 +916,7 @@ const App: React.FC = () => {
   const simulateAiMatch = (player1Id: string, player2Id: string) => {
     const p1 = getPlayerStatsTotal(player1Id);
     const p2 = getPlayerStatsTotal(player2Id);
-    const bias = p1 + p2 === 0 ? 0.5 : p1 / (p1 + p2);
+    const bias = getBiasedWinChance(p1, p2);
     return Math.random() < bias ? player1Id : player2Id;
   };
 
@@ -920,11 +1157,15 @@ const App: React.FC = () => {
     [buildTieredLoadout, difficulty, nextOpponentProfile, selectedAi, tournamentState]
   );
   const aiStats = useMemo(
-    () => applyAiProfileModifiers(buildPlayerStats(SHOP_ITEMS, aiLoadout), selectedAi?.id),
-    [aiLoadout, selectedAi?.id]
+    () => applyAiDifficultyModifier(
+      applyAiProfileModifiers(buildPlayerStats(SHOP_ITEMS, aiLoadout), selectedAi?.id),
+      aiDifficultySetting
+    ),
+    [aiDifficultySetting, aiLoadout, selectedAi?.id]
   );
   const nextOpponentName = nextOpponentId ? playersById.get(nextOpponentId)?.name : undefined;
   const nextOpponentPortrait = nextOpponentId ? getPlayerPortraitSrc(nextOpponentId) : undefined;
+  const nextOpponentRank = nextOpponentId ? rankingsById.get(nextOpponentId) : undefined;
   const tournamentName = tournamentState?.name ?? 'Exhibition';
   const tournamentRound = tournamentState ? formatTournamentRound(nextTournamentMatch?.round) : 'Match';
 
@@ -945,6 +1186,8 @@ const App: React.FC = () => {
         opponentName={tournamentState ? nextOpponentName || 'Opponent' : undefined}
         playerPortrait={playerPortrait}
         opponentPortrait={tournamentState ? nextOpponentPortrait : undefined}
+        playerRank={playerRank}
+        opponentRank={tournamentState ? nextOpponentRank : undefined}
         surface={tournamentState?.surface ?? 'grass'}
         playerName={playerName}
         tournamentName={tournamentName}
@@ -966,6 +1209,7 @@ const App: React.FC = () => {
             setTournamentEarnings(0);
             setPendingTournamentMatchId(null);
             setTournamentResult(null);
+            setBlockResultSummary(null);
             return;
           }
           setTournamentResult({
@@ -986,6 +1230,8 @@ const App: React.FC = () => {
           }
           const activeTournamentId = tournamentState.id;
           const activeTournamentBlock = tournamentState.block;
+          const finalRoundId = tournamentState.rounds[tournamentState.rounds.length - 1]?.[0]?.id;
+          const isChampion = winner === 'player' && finalRoundId === pendingTournamentMatchId;
           let resultToShow: TournamentResultState | null = null;
           let completedState: TournamentState | null = null;
           setTournamentState(prev => {
@@ -1027,24 +1273,25 @@ const App: React.FC = () => {
             }
             return updated;
           });
-          if (resultToShow) {
-            finalizeBlockResults(
-              activeTournamentBlock ?? careerBlock,
-              completedState ?? undefined,
-              tournamentOrigin === 'career' ? 'career' : 'tournament-result'
-            );
-            if (activeTournamentBlock) {
-              setCareerBlock(prev => (prev % 26) + 1);
-            }
-            if (resultToShow.outcome === 'champion' && activeTournamentId) {
-              updatePlayerProfile(PLAYER_ID, {
-                tournamentWins: {
-                  ...playerTournamentWins,
-                  [activeTournamentId]: (playerTournamentWins[activeTournamentId] ?? 0) + 1,
-                },
-              });
-            }
+            if (resultToShow) {
+              finalizeBlockResults(
+                activeTournamentBlock ?? careerBlock,
+                completedState ?? undefined,
+                tournamentOrigin === 'career' ? 'career' : 'tournament-result'
+              );
+              if (activeTournamentBlock) {
+                setCareerBlock(prev => (prev % 26) + 1);
+              }
+              if (isChampion && activeTournamentId) {
+                updatePlayerProfile(PLAYER_ID, {
+                  tournamentWins: {
+                    ...playerTournamentWins,
+                    [activeTournamentId]: (playerTournamentWins[activeTournamentId] ?? 0) + 1,
+                  },
+                });
+              }
             setTournamentResult(resultToShow);
+            setBlockResultSummary(resultToShow);
             setTournamentState(null);
             setTournamentEarnings(0);
             if (!activeTournamentBlock && tournamentOrigin !== 'career') {
@@ -1110,6 +1357,11 @@ const App: React.FC = () => {
             const completedState = tournamentState.status === 'active'
               ? forfeitTournament(tournamentState)
               : tournamentState;
+            setBlockResultSummary({
+              outcome: completedState.status === 'champion' ? 'champion' : 'eliminated',
+              tournamentName: completedState.name,
+              earnings: tournamentEarnings,
+            });
             finalizeBlockResults(completedState.block ?? careerBlock, completedState, 'career');
             if (completedState.block) {
               setCareerBlock(prev => (prev % 26) + 1);
@@ -1117,7 +1369,6 @@ const App: React.FC = () => {
             setTournamentState(null);
             setTournamentEarnings(0);
             setPendingTournamentMatchId(null);
-            setTournamentResult(null);
             return;
           }
           setTournamentState(null);
@@ -1154,16 +1405,20 @@ const App: React.FC = () => {
 
   if (screen === 'settings') {
     return (
-      <Settings onBack={() => setScreen('menu')} />
+      <Settings
+        onBack={() => setScreen('menu')}
+        aiDifficulty={aiDifficultySetting}
+        onAiDifficultyChange={setAiDifficultySetting}
+      />
     );
   }
 
   if (screen === 'block-summary' && blockSummary) {
     const playerBlockRow = blockSummary.rows.find(row => row.id === PLAYER_ID);
-    const resultSummary = tournamentResult ? {
-      outcome: tournamentResult.outcome,
-      tournamentName: tournamentResult.tournamentName,
-      earnings: tournamentResult.earnings,
+    const resultSummary = blockResultSummary ? {
+      outcome: blockResultSummary.outcome,
+      tournamentName: blockResultSummary.tournamentName,
+      earnings: blockResultSummary.earnings,
       rankingDelta: playerBlockRow?.deltaPoints ?? 0,
     } : undefined;
     return (
@@ -1172,6 +1427,7 @@ const App: React.FC = () => {
         rows={blockSummary.rows}
         resultSummary={resultSummary}
         onContinue={() => {
+          setBlockResultSummary(null);
           setScreen(blockSummaryNextScreen);
         }}
       />
@@ -1198,6 +1454,7 @@ const App: React.FC = () => {
         }}
         onSkipBlock={() => {
           setTournamentResult(null);
+          setBlockResultSummary(null);
           finalizeBlockResults(careerBlock, undefined, 'career');
           setCareerBlock(prev => (prev % 26) + 1);
         }}
@@ -1274,7 +1531,13 @@ const App: React.FC = () => {
       onShotShop={() => setScreen('shot-shop')}
       onChallenge={() => setScreen('opponent')}
       onTournaments={() => setScreen('tournaments')}
-      onCareer={() => setScreen('career')}
+      onCareer={() => {
+        if (tournamentState && tournamentOrigin === 'career' && tournamentState.status === 'active') {
+          setScreen('tournaments');
+        } else {
+          setScreen('career');
+        }
+      }}
       onRankings={() => setScreen('rankings')}
       onSettings={() => setScreen('settings')}
     />

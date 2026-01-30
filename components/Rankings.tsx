@@ -151,6 +151,29 @@ const Rankings: React.FC<RankingsProps> = ({ players, onBack }) => {
                   );
                 })}
               </div>
+
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
+                  Tournament Results
+                </div>
+                <div className="mt-3 space-y-2 text-[10px] uppercase tracking-widest text-slate-300">
+                  {selectedPlayer.tournamentRankingPoints && Object.keys(selectedPlayer.tournamentRankingPoints).length > 0 ? (
+                    Object.entries(selectedPlayer.tournamentRankingPoints)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([tournamentId, points]) => (
+                        <div key={tournamentId} className="rounded-full bg-black/30 px-3 py-1 flex items-center justify-between">
+                          <span className="truncate">{tournamentId.replace('career-', '').replace(/-/g, ' ')}</span>
+                          <span className="text-slate-400">{points} pts</span>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="rounded-full bg-black/30 px-3 py-1 text-slate-500">
+                      No recorded results yet.
+                    </div>
+                  )}
+                </div>
+              </div>
             </aside>
           )}
         </div>

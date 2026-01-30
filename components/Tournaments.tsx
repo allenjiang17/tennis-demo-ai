@@ -223,9 +223,52 @@ const Tournaments: React.FC<TournamentsProps> = ({
             const roundOffset = roundOf16Complete ? 1 : 0;
             const roundsToShow = tournamentState.rounds.slice(roundOffset);
             const gridColsClass = roundOf16Complete ? 'md:grid-cols-3' : 'md:grid-cols-4';
+            const isChampion = tournamentState.status === 'champion';
+            const isEliminated = tournamentState.status === 'eliminated';
+            const lastPlayerMatch = tournamentState.rounds
+              .flat()
+              .filter(match => match.player1Id === 'player' || match.player2Id === 'player')
+              .sort((a, b) => b.round - a.round)[0];
+            const eliminationMatch = isEliminated
+              ? tournamentState.rounds
+                  .flat()
+                  .find(match => (
+                    (match.player1Id === 'player' || match.player2Id === 'player')
+                    && match.winnerId
+                    && match.winnerId !== 'player'
+                  ))
+              : undefined;
+            const eliminatedBy = eliminationMatch?.winnerId ? getPlayerName(eliminationMatch.winnerId) : 'Opponent';
+            const eliminatedRound = eliminationMatch?.round ? formatRound(eliminationMatch.round) : 'Match';
+            const statusText = isChampion
+              ? `Congratulations! You won the ${tournamentState.name}.`
+              : isEliminated
+                ? `You were eliminated in ${eliminatedRound} by ${eliminatedBy}.`
+                : lastPlayerMatch
+                  ? `Next up: ${formatRound(lastPlayerMatch.round)}.`
+                  : '';
+            const isOnlyLeave = !(tournamentState.status === 'active' && nextMatchId);
             return (
               <>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
+            {isChampion && (
+              <div className="pointer-events-none absolute inset-0">
+                {Array.from({ length: 18 }).map((_, index) => (
+                  <span
+                    key={`confetti-${index}`}
+                    className="absolute h-2 w-2 rounded-sm opacity-80"
+                    style={{
+                      left: `${(index * 13) % 100}%`,
+                      top: `${(index * 7) % 80}%`,
+                      backgroundColor: ['#facc15', '#38bdf8', '#34d399', '#f472b6', '#a855f7'][index % 5],
+                      transform: `rotate(${index * 25}deg)`,
+                      animation: `confettiFall ${2.4 + (index % 5) * 0.3}s ease-in-out infinite`,
+                      animationDelay: `${(index % 6) * 0.2}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-[10px] uppercase tracking-widest text-slate-400">Tournament</div>
@@ -235,6 +278,11 @@ const Tournaments: React.FC<TournamentsProps> = ({
                 <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
                   {formatRound(nextMatch?.round ?? 1)} • {tournamentState.surface}
                 </div>
+                {statusText && (
+                  <div className={`mt-3 text-[11px] uppercase tracking-widest ${isChampion ? 'text-emerald-200' : isEliminated ? 'text-rose-200' : 'text-slate-200'}`}>
+                    {statusText}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {tournamentState.status === 'active' && nextMatchId && (
@@ -249,7 +297,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
                 <button
                   type="button"
                   onClick={onExitTournament}
-                  className="px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+                  className={`px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 transition-all ${isOnlyLeave ? 'bg-white text-slate-900 hover:scale-[1.02] transition-transform' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
                 >
                   Leave Tournament
                 </button>
@@ -257,6 +305,21 @@ const Tournaments: React.FC<TournamentsProps> = ({
             </div>
           </div>
 
+          <style>{`
+            @keyframes bracketPulse {
+              0%, 100% {
+                box-shadow: 0 0 0 0 rgba(226,232,240,0.2);
+              }
+              50% {
+                box-shadow: 0 0 0 8px rgba(226,232,240,0.05);
+              }
+            }
+            @keyframes confettiFall {
+              0% { transform: translateY(-20%) rotate(0deg); opacity: 0; }
+              10% { opacity: 1; }
+              100% { transform: translateY(120%) rotate(240deg); opacity: 0; }
+            }
+          `}</style>
           <div className={`grid grid-cols-1 ${gridColsClass} gap-6`}>
             {roundsToShow.map((round, roundIndex) => (
               <div key={`round-${roundIndex + roundOffset}`} className="space-y-3">
@@ -267,8 +330,13 @@ const Tournaments: React.FC<TournamentsProps> = ({
                   <div
                     key={match.id}
                     className={`rounded-2xl border px-4 py-3 text-[10px] uppercase tracking-widest ${
-                      match.winnerId === 'player' ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200' : 'border-white/10 bg-white/5 text-slate-300'
+                      match.winnerId === 'player'
+                        ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200'
+                        : match.id === nextMatchId
+                          ? 'border-white/40 bg-white/5 text-slate-100'
+                          : 'border-white/10 bg-white/5 text-slate-300'
                     }`}
+                    style={match.id === nextMatchId ? { animation: 'bracketPulse 2.6s ease-in-out infinite' } : undefined}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2">

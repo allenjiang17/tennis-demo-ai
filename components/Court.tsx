@@ -17,8 +17,10 @@ interface CourtProps {
   aiPosition: { x: number; y: number };
   playerHitRadiusFH: number;
   playerHitRadiusBH: number;
+  playerVolleyRadius: number;
   aiHitRadiusFH: number;
   aiHitRadiusBH: number;
+  ballHasBounced: boolean;
   serveDebug?: { x: number; y: number; radius: number; visible: boolean };
   aiVolleyZoneY?: number;
   aiVolleyTarget?: { x: number; y: number };
@@ -42,8 +44,10 @@ const Court: React.FC<CourtProps> = ({
   aiPosition,
   playerHitRadiusFH,
   playerHitRadiusBH,
+  playerVolleyRadius,
   aiHitRadiusFH,
   aiHitRadiusBH,
+  ballHasBounced,
   serveDebug,
   aiVolleyZoneY,
   aiVolleyTarget,
@@ -102,10 +106,10 @@ const Court: React.FC<CourtProps> = ({
   const ballScaleDenom = PHYSICS.COURT_BOUNDS.MAX_Y * 1.55;
   const dx = ballHitOnCourt.x - playerOnCourt.x;
   const dy = ballHitOnCourt.y - playerOnCourt.y;
-  const activeHitRadius = dx < 0 ? playerHitRadiusBH : playerHitRadiusFH;
+  const activeHitRadius = ballHasBounced ? (dx < 0 ? playerHitRadiusBH : playerHitRadiusFH) : playerVolleyRadius;
   const distance = Math.sqrt(dx * dx + dy * dy);
   const isInReach = distance < activeHitRadius;
-  const showHitDebug = true;
+  const showHitDebug = false;
   const hitRadiusX = (playableWidth * activeHitRadius) / 100;
   const aiOnCourt = mapToCourt(aiPosition);
   const aiDx = ballHitOnCourt.x - aiOnCourt.x;
@@ -174,11 +178,11 @@ const Court: React.FC<CourtProps> = ({
               }}
             >
               <div 
-                className="w-12 h-6 bg-black/40 rounded-full blur-[1px] transition-opacity duration-1000"
+                className="w-8 h-4 bg-black/40 rounded-full blur-[1px] transition-opacity duration-1000"
                 style={{ opacity: marker.opacity }}
               />
               <div 
-                className="absolute inset-0 w-12 h-6 border-2 border-white/20 rounded-full animate-ping"
+                className="absolute inset-0 w-8 h-4 border-2 border-white/20 rounded-full animate-ping"
                 style={{ opacity: marker.opacity > 0 ? 0.4 : 0 }}
               />
             </div>
@@ -209,7 +213,7 @@ const Court: React.FC<CourtProps> = ({
           </div>
         )}
 
-        {aiVolleyTargetOnCourt && (
+        {false && aiVolleyTargetOnCourt && (
           <div
             className="absolute pointer-events-none z-10 hidden w-3 h-3 rounded-full bg-fuchsia-200 shadow-[0_0_10px_rgba(232,121,249,0.9)]"
             style={{
@@ -220,7 +224,7 @@ const Court: React.FC<CourtProps> = ({
           />
         )}
 
-        {aiRunTargetOnCourt && (
+        {false && aiRunTargetOnCourt && (
           <div
             className="absolute pointer-events-none z-10 w-3 h-3 rounded-full bg-fuchsia-500 shadow-[0_0_12px_rgba(217,70,239,0.9)]"
             style={{
@@ -266,10 +270,10 @@ const Court: React.FC<CourtProps> = ({
           }}
         >
            <div className="flex flex-col items-center">
-             <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-900 rounded-full shadow-lg border-2 border-white flex items-center justify-center text-white text-[8px] font-bold">AI</div>
+             <div className="w-7 h-7 bg-gradient-to-br from-red-600 to-red-900 rounded-full shadow-lg border-2 border-white flex items-center justify-center text-white text-[6px] font-bold">AI</div>
              {/* AI Racket */}
              <div 
-               className="absolute w-[85px] h-[10px] pointer-events-none transition-transform duration-200 ease-out flex items-center justify-end"
+               className="absolute w-[60px] h-[7px] pointer-events-none transition-transform duration-200 ease-out flex items-center justify-end"
                style={{ 
                  transformOrigin: 'left center',
                  left: '50%',
@@ -278,9 +282,9 @@ const Court: React.FC<CourtProps> = ({
                }}
              >
                <div className="flex items-center">
-                 <div className="w-12 h-2 bg-slate-400 rounded-l-full shadow-md" />
-                 <div className="w-16 h-12 border-[4px] border-slate-200 rounded-[45%] bg-white/5 flex items-center justify-center overflow-hidden relative shadow-xl">
-                   <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_2px,rgba(255,255,255,0.1)_2px),linear-gradient(-45deg,transparent_2px,rgba(255,255,255,0.1)_2px)] bg-[size:4px_4px]" />
+                 <div className="w-8 h-1.5 bg-slate-400 rounded-l-full shadow-md" />
+                 <div className="w-11 h-8 border-[3px] border-slate-200 rounded-[45%] bg-white/5 flex items-center justify-center overflow-hidden relative shadow-xl">
+                   <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_1px,rgba(255,255,255,0.1)_1px),linear-gradient(-45deg,transparent_1px,rgba(255,255,255,0.1)_1px)] bg-[size:3px_3px]" />
                  </div>
                </div>
              </div>
@@ -292,14 +296,14 @@ const Court: React.FC<CourtProps> = ({
           className="absolute z-20"
           style={{ left: `${playerOnCourt.x}%`, top: `${playerOnCourt.y}%`, transform: 'translate(-50%, -50%)' }}
         >
-           <div className="relative flex items-center justify-center w-32 h-32">
+           <div className="relative flex items-center justify-center w-24 h-24">
              <div 
                className={`absolute rounded-full border-2 transition-all duration-300 ${isInReach ? 'border-emerald-400 scale-110 bg-emerald-400/10' : 'border-white/10'}`}
                style={{ width: `${hitRadiusX * 2}%`, height: `${hitRadiusX * 2}%` }}
              />
              
              <div 
-               className="absolute w-[85px] h-[10px] pointer-events-none transition-transform duration-300 ease-out flex items-center justify-end"
+               className="absolute w-[60px] h-[7px] pointer-events-none transition-transform duration-300 ease-out flex items-center justify-end"
                style={{ 
                  transformOrigin: 'left center',
                  left: '50%',
@@ -308,20 +312,20 @@ const Court: React.FC<CourtProps> = ({
                }}
              >
                 <div className="flex items-center">
-                   <div className="w-12 h-2 bg-slate-400 rounded-l-full shadow-md" />
-                   <div className="w-16 h-12 border-[4px] border-slate-200 rounded-[45%] bg-white/5 flex items-center justify-center overflow-hidden relative shadow-xl">
-                      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_2px,rgba(255,255,255,0.1)_2px),linear-gradient(-45deg,transparent_2px,rgba(255,255,255,0.1)_2px)] bg-[size:4px_4px]" />
+                   <div className="w-8 h-1.5 bg-slate-400 rounded-l-full shadow-md" />
+                   <div className="w-11 h-8 border-[3px] border-slate-200 rounded-[45%] bg-white/5 flex items-center justify-center overflow-hidden relative shadow-xl">
+                      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_1px,rgba(255,255,255,0.1)_1px),linear-gradient(-45deg,transparent_1px,rgba(255,255,255,0.1)_1px)] bg-[size:3px_3px]" />
                    </div>
                 </div>
              </div>
 
-             <div className={`w-14 h-14 bg-gradient-to-br ${lastStroke === 'BH' ? 'from-purple-600 to-blue-800' : 'from-blue-600 to-blue-900'} rounded-full shadow-2xl border-4 border-white flex items-center justify-center text-white text-[10px] font-black italic z-10 relative`}>
+             <div className={`w-10 h-10 bg-gradient-to-br ${lastStroke === 'BH' ? 'from-purple-600 to-blue-800' : 'from-blue-600 to-blue-900'} rounded-full shadow-2xl border-[3px] border-white flex items-center justify-center text-white text-[8px] font-black italic z-10 relative`}>
                 {lastStroke || 'PRO'}
              </div>
              
-             <div className="absolute bottom-4 flex gap-2 z-10">
-                <span className={`text-[8px] font-orbitron transition-opacity ${dx < 0 && isInReach ? 'text-emerald-400 opacity-100 font-bold' : 'opacity-20 text-white'}`}>BACKHAND</span>
-                <span className={`text-[8px] font-orbitron transition-opacity ${dx > 0 && isInReach ? 'text-emerald-400 opacity-100 font-bold' : 'opacity-20 text-white'}`}>FOREHAND</span>
+             <div className="absolute bottom-3 flex gap-2 z-10">
+                <span className={`text-[7px] font-orbitron transition-opacity ${dx < 0 && isInReach ? 'text-emerald-400 opacity-100 font-bold' : 'opacity-20 text-white'}`}>BACKHAND</span>
+                <span className={`text-[7px] font-orbitron transition-opacity ${dx > 0 && isInReach ? 'text-emerald-400 opacity-100 font-bold' : 'opacity-20 text-white'}`}>FOREHAND</span>
              </div>
            </div>
         </div>
@@ -350,25 +354,25 @@ const Court: React.FC<CourtProps> = ({
 
         {/* Ball Shadow */}
         <div 
-          className="absolute w-4 h-2 bg-black/40 rounded-full blur-sm transition-all"
+          className="absolute w-3 h-3 bg-black/40 rounded-full blur-sm transition-all"
           style={{ 
             left: `${ballOnCourt.x}%`, 
             top: `${ballOnCourt.y + 2}%`,
             transitionDuration: `${animationDuration}ms`,
             transitionTimingFunction: ballTimingFunction,
-            transform: `translate(-50%, -50%) scale(${0.85 + (ballPosition.y / ballScaleDenom)})` 
+            transform: `translate(-50%, -50%) scale(${0.55 + (ballPosition.y / ballScaleDenom)})` 
           }}
         />
 
         {/* The Ball */}
         <div 
-          className={`absolute w-5 h-5 rounded-full shadow-2xl z-30 transition-all ${isInReach ? 'bg-white shadow-[0_0_20px_white]' : 'bg-yellow-300 shadow-[0_0_15px_rgba(253,224,71,0.6)]'}`}
+          className={`absolute w-4 h-4 rounded-full shadow-2xl z-30 transition-all ${isInReach ? 'bg-white shadow-[0_0_20px_white]' : 'bg-yellow-300 shadow-[0_0_15px_rgba(253,224,71,0.6)]'}`}
           style={{ 
             left: `${ballOnCourt.x}%`, 
             top: `${ballOnCourt.y}%`,
             transitionDuration: `${animationDuration}ms`,
             transitionTimingFunction: ballTimingFunction,
-            transform: `translate(-50%, -50%) scale(${0.7 + (ballPosition.y / ballScaleDenom)})`,
+            transform: `translate(-50%, -50%) scale(${0.55 + (ballPosition.y / ballScaleDenom)})`,
           }}
         >
           <div className="w-full h-full border border-black/10 rounded-full" />
