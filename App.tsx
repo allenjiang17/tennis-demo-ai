@@ -131,10 +131,11 @@ const loadFromStorage = <T,>(key: string, fallback: T): T => {
   }
 };
 const SHOP_STOCK_SIZE = 3;
-const RANKING_POINTS_BY_TIER: Record<DifficultyTier, number[]> = {
-  amateur: [20, 50, 110],
-  pro: [80, 180, 360],
-  elite: [250, 600, 1400],
+const RANKING_POINTS_BY_CATEGORY: Record<TournamentCategory, number[]> = {
+  itf: [10, 20, 40, 80],
+  pro: [20, 40, 80, 160],
+  elite: [40, 80, 160, 320],
+  'grand-slam': [80, 160, 320, 640],
 };
 const RANKING_GATES_BY_CATEGORY: Record<TournamentCategory, RankingGate> = {
   itf: { maxRank: Number.POSITIVE_INFINITY },
@@ -153,7 +154,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [10, 10, 10],
     championBonus: 50,
-    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.itf,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
@@ -165,7 +166,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [10, 10, 10],
     championBonus: 50,
-    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.itf,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
@@ -177,7 +178,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [10, 10, 10],
     championBonus: 50,
-    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.itf,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
@@ -189,7 +190,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'clay',
     prizes: [10, 10, 10],
     championBonus: 50,
-    rankingPoints: RANKING_POINTS_BY_TIER.amateur,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.itf,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   {
@@ -202,7 +203,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [20, 20, 20],
     championBonus: 100,
-    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
@@ -215,7 +216,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [20, 20, 20],
     championBonus: 100,
-    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
@@ -228,7 +229,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'clay',
     prizes: [20, 20, 20],
     championBonus: 100,
-    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
@@ -241,7 +242,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'grass',
     prizes: [20, 20, 20],
     championBonus: 100,
-    rankingPoints: RANKING_POINTS_BY_TIER.pro,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   {
@@ -254,7 +255,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [30, 30, 30],
     championBonus: 200,
-    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   {
@@ -267,7 +268,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [30, 30, 30],
     championBonus: 200,
-    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   {
@@ -280,7 +281,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'hardcourt',
     prizes: [30, 30, 30],
     championBonus: 200,
-    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   {
@@ -293,7 +294,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'clay',
     prizes: [50, 50, 50],
     championBonus: 400,
-    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY['grand-slam'],
     rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
   {
@@ -306,7 +307,7 @@ const TOURNAMENTS: TournamentDef[] = [
     surface: 'grass',
     prizes: [50, 50, 50],
     championBonus: 400,
-    rankingPoints: RANKING_POINTS_BY_TIER.elite,
+    rankingPoints: RANKING_POINTS_BY_CATEGORY['grand-slam'],
     rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
 ];
@@ -619,18 +620,42 @@ const App: React.FC = () => {
   };
 
   const collectRankingAwards = (state: TournamentState): RankingAward[] => {
-    const awards: RankingAward[] = [];
+    const alreadyAwarded = state.rounds.every(round => round.every(match => match.rankingAwarded));
+    if (alreadyAwarded) return [];
+
+    const awardsByPlayer = new Map<string, number>();
+    const [qfPoints, sfPoints, finalPoints, winnerPoints] = state.rankingPoints;
+
     state.rounds.forEach(round => {
       round.forEach(match => {
-        if (!match.winnerId || match.rankingAwarded) return;
-        const points = state.rankingPoints[match.round - 1] ?? 0;
-        if (points > 0) {
-          awards.push({ playerId: match.winnerId, points });
+        if (!match.winnerId || !match.player1Id || !match.player2Id) return;
+        const loserId = match.winnerId === match.player1Id ? match.player2Id : match.player1Id;
+        if (!loserId) return;
+        if (match.round === 1 && qfPoints !== undefined) {
+          awardsByPlayer.set(loserId, qfPoints);
+        } else if (match.round === 2 && sfPoints !== undefined) {
+          awardsByPlayer.set(loserId, sfPoints);
+        } else if (match.round === 3 && finalPoints !== undefined) {
+          awardsByPlayer.set(loserId, finalPoints);
         }
+      });
+    });
+
+    const finalWinner = state.rounds[2]?.[0]?.winnerId;
+    if (finalWinner && winnerPoints !== undefined) {
+      awardsByPlayer.set(finalWinner, winnerPoints);
+    }
+
+    state.rounds.forEach(round => {
+      round.forEach(match => {
         match.rankingAwarded = true;
       });
     });
-    return awards;
+
+    return Array.from(awardsByPlayer.entries()).map(([playerId, points]) => ({
+      playerId,
+      points,
+    }));
   };
 
   const getPlayerStatsTotal = (playerId: string) => {
