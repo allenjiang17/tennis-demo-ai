@@ -233,7 +233,7 @@ const Tournaments: React.FC<TournamentsProps> = ({
                   {tournamentState.name}
                 </div>
                 <div className="mt-2 text-[10px] uppercase tracking-widest text-slate-400">
-                  {formatRound(nextMatch?.round ?? 1)} • {tournamentState.surface} • Champion Bonus {tournamentState.championBonus ?? 0}
+                  {formatRound(nextMatch?.round ?? 1)} • {tournamentState.surface}
                 </div>
               </div>
               <div className="flex items-center gap-2">

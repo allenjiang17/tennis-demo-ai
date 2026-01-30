@@ -228,35 +228,30 @@ const RANKING_GATES_BY_CATEGORY: Record<TournamentCategory, RankingGate> = {
 const CAREER_CATEGORY_CONFIG: Record<TournamentCategory, {
   tier: DifficultyTier;
   prizes: number[];
-  championBonus: number;
   rankingPoints: number[];
   rankingGate: RankingGate;
 }> = {
   itf: {
     tier: 'amateur',
-    prizes: [10, 10, 10],
-    championBonus: 50,
+    prizes: [10, 20, 40, 120],
     rankingPoints: RANKING_POINTS_BY_CATEGORY.itf,
     rankingGate: RANKING_GATES_BY_CATEGORY.itf,
   },
   pro: {
     tier: 'pro',
-    prizes: [20, 20, 20],
-    championBonus: 100,
+    prizes: [80, 160, 320, 960],
     rankingPoints: RANKING_POINTS_BY_CATEGORY.pro,
     rankingGate: RANKING_GATES_BY_CATEGORY.pro,
   },
   elite: {
     tier: 'elite',
-    prizes: [30, 30, 30],
-    championBonus: 200,
+    prizes: [640, 1280, 2560, 7680],
     rankingPoints: RANKING_POINTS_BY_CATEGORY.elite,
     rankingGate: RANKING_GATES_BY_CATEGORY.elite,
   },
   'grand-slam': {
     tier: 'elite',
-    prizes: [50, 50, 50],
-    championBonus: 400,
+    prizes: [5120, 10240, 20480, 61440],
     rankingPoints: RANKING_POINTS_BY_CATEGORY['grand-slam'],
     rankingGate: RANKING_GATES_BY_CATEGORY['grand-slam'],
   },
@@ -279,7 +274,7 @@ const buildCareerTournament = (data: {
     category: data.category,
     description: data.description,
     prizes: base.prizes,
-    championBonus: base.championBonus,
+    championBonus: 0,
     image: data.image,
     surface: data.surface,
     rankingPoints: base.rankingPoints,
@@ -377,12 +372,10 @@ const App: React.FC = () => {
   } | null>(null);
   const [blockSummaryNextScreen, setBlockSummaryNextScreen] = useState<'menu' | 'career' | 'tournament-result'>('career');
 
-  const boxPrices: Record<ShotType, number> = {
-    serve: 450,
-    forehand: 400,
-    backhand: 400,
-    volley: 350,
-    athleticism: 350,
+  const boxPrices: Record<'starter' | 'standard' | 'premium', number> = {
+    starter: 240,
+    standard: 12000,
+    premium: 36000,
   };
   const playersById = useMemo(
     () => new Map(players.map(player => [player.id, player])),
@@ -454,6 +447,8 @@ const App: React.FC = () => {
 
   const rollStockTier = useCallback(() => {
     const roll = Math.random() * 100;
+
+    console.log({roll});
     if (roll < 50) return 'amateur';
     if (roll < 80) return 'pro';
     if (roll < 95) return 'elite';
@@ -468,6 +463,7 @@ const App: React.FC = () => {
       let nextId = '';
       let attempts = 0;
       while (!nextId && attempts < 20) {
+        console.log('generating stock item', i, attempts);
         const tier = rollStockTier();
         const tierItems = nonUniqueItems.filter(item => item.tier === tier && !ids.includes(item.id));
         const pool = tierItems.length > 0 ? tierItems : nonUniqueItems.filter(item => !ids.includes(item.id));
@@ -504,35 +500,47 @@ const App: React.FC = () => {
     [shopItemsById, shopStock]
   );
 
-  const rollTier = (): ShopItem['tier'] => {
-    const roll = Math.random() * 100;
-    if (roll < 40) return 'amateur';
-    if (roll < 70) return 'pro';
-    if (roll < 90) return 'elite';
-    if (roll < 98) return 'legendary';
-    return 'unique';
+  const rollBoxTier = (tier: 'starter' | 'standard' | 'premium'): ShopItem['tier'] => {
+    const weights: Array<{ tier: ShopItem['tier']; weight: number }> =
+      tier === 'starter'
+        ? [
+          { tier: 'amateur', weight: 50 },
+          { tier: 'pro', weight: 40 },
+          { tier: 'elite', weight: 10 },
+        ]
+        : tier === 'standard'
+          ? [
+            { tier: 'pro', weight: 50 },
+            { tier: 'elite', weight: 35 },
+            { tier: 'legendary', weight: 15 },
+            { tier: 'unique', weight: 5 },
+          ]
+          : [
+            { tier: 'elite', weight: 55 },
+            { tier: 'legendary', weight: 35 },
+            { tier: 'unique', weight: 10 },
+          ];
+    const total = weights.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * total;
+    for (const entry of weights) {
+      roll -= entry.weight;
+      if (roll <= 0) return entry.tier;
+    }
+    return weights[weights.length - 1].tier;
   };
 
-  const rollPremiumTier = (): ShopItem['tier'] => {
-    const roll = Math.random() * 100;
-    if (roll < 40) return 'pro';
-    if (roll < 70) return 'elite';
-    if (roll < 90) return 'legendary';
-    return 'unique';
-  };
-
-  const pickRandomItem = (shot: ShotType, premium = false): ShopItem | null => {
-    const tier = premium ? rollPremiumTier() : rollTier();
+  const pickRandomItem = (shot: ShotType, boxTier: 'starter' | 'standard' | 'premium'): ShopItem | null => {
+    const tier = rollBoxTier(boxTier);
     const tierItems = SHOP_ITEMS.filter(item => item.shot === shot && item.tier === tier);
     const pool = tierItems.length > 0 ? tierItems : SHOP_ITEMS.filter(item => item.shot === shot);
     if (pool.length === 0) return null;
     return pool[Math.floor(Math.random() * pool.length)];
   };
 
-  const handleBuyBox = (shot: ShotType, premium = false) => {
-    const price = premium ? boxPrices[shot] * 2 : boxPrices[shot];
+  const handleBuyBox = (shot: ShotType, boxTier: 'starter' | 'standard' | 'premium') => {
+    const price = boxPrices[boxTier];
     if (wallet < price) return;
-    const item = pickRandomItem(shot, premium);
+    const item = pickRandomItem(shot, boxTier);
     if (!item) return;
     setWallet(prev => prev - price);
     setOwnedIds(prev => new Set([...Array.from(prev), item.id]));
@@ -632,7 +640,7 @@ const App: React.FC = () => {
 
   const getPlacementPoints = (state: TournamentState) => {
     const awardsByPlayer = new Map<string, number>();
-    const [qfPoints, sfPoints, finalPoints, winnerPoints] = state.rankingPoints;
+    const [, qfPoints, sfPoints, finalPoints, winnerPoints] = state.rankingPoints;
 
     state.rounds.forEach(round => {
       round.forEach(match => {
@@ -994,7 +1002,7 @@ const App: React.FC = () => {
               match.winnerId = match.player1Id === PLAYER_ID ? match.player2Id : match.player1Id;
             }
             if (winner === 'player') {
-              const prize = match.round >= 2 ? (updated.prizes[match.round - 2] ?? 0) : 0;
+              const prize = updated.prizes[match.round - 1] ?? 0;
               setWallet(prevWallet => prevWallet + prize);
               setTournamentEarnings(prevEarned => prevEarned + prize);
             } else {
@@ -1006,13 +1014,9 @@ const App: React.FC = () => {
               simulateTournamentToEnd(updated, match.round);
             }
             if (updated.rounds[3][0].winnerId === PLAYER_ID) updated.status = 'champion';
-            const championBonus = updated.status === 'champion' && winner === 'player' ? updated.championBonus : 0;
-            if (championBonus > 0) {
-              setWallet(prevWallet => prevWallet + championBonus);
-              setTournamentEarnings(prevEarned => prevEarned + championBonus);
-            }
+            const championBonus = 0;
             if (updated.status !== 'active') {
-              const addedPrize = winner === 'player' ? (updated.prizes[match.round - 2] ?? 0) : 0;
+              const addedPrize = winner === 'player' ? (updated.prizes[match.round - 1] ?? 0) : 0;
               resultToShow = {
                 outcome: updated.status === 'champion' ? 'champion' : 'eliminated',
                 tournamentName: updated.name,
