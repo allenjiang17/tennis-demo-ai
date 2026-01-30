@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Game from './Game';
 import Shop from './components/Shop';
 import OpponentSelect from './components/OpponentSelect';
 import Menu from './components/Menu';
 import Rankings from './components/Rankings';
+import Settings from './components/Settings';
 import ShotShop from './components/ShotShop';
 import ShotBoxOpen from './components/ShotBoxOpen';
 import Tournaments from './components/Tournaments';
@@ -13,6 +14,7 @@ import { SHOP_ITEMS } from './data/shopItems';
 import { AI_PROFILES } from './data/aiProfiles';
 import { PORTRAITS } from './data/portraits';
 import { BASE_PLAYERS } from './data/players';
+import { STARTING_CREDITS } from './constants';
 
 const DEFAULT_LOADOUT: Loadout = {
   serveFirst: 'amateur-serve-1',
@@ -106,6 +108,23 @@ type RankingAward = {
 };
 
 const PLAYER_ID = 'player';
+const STORAGE_KEYS = {
+  wallet: 'tennis.wallet',
+  ownedIds: 'tennis.ownedIds',
+  loadout: 'tennis.loadout',
+  players: 'tennis.players',
+} as const;
+
+const loadFromStorage = <T,>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+};
 const RANKING_POINTS_BY_TIER: Record<DifficultyTier, number[]> = {
   amateur: [20, 50, 110],
   pro: [80, 180, 360],
@@ -301,19 +320,39 @@ const createInitialPlayers = (): PlayerProfile[] => {
 };
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings'>('menu');
-  const [wallet, setWallet] = useState(5000);
-  const [ownedIds, setOwnedIds] = useState<Set<string>>(
-    new Set(['amateur-serve-1', 'amateur-forehand-1', 'amateur-backhand-1', 'amateur-volley-1', 'amateur-athleticism-1'])
-  );
-  const [loadout, setLoadout] = useState<Loadout>(DEFAULT_LOADOUT);
+  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings' | 'settings'>('menu');
+  const [wallet, setWallet] = useState(() => loadFromStorage<number>(STORAGE_KEYS.wallet, STARTING_CREDITS));
+  const [ownedIds, setOwnedIds] = useState<Set<string>>(() => {
+    const stored = loadFromStorage<string[] | null>(STORAGE_KEYS.ownedIds, null);
+    if (!stored) {
+      return new Set(['amateur-serve-1', 'amateur-forehand-1', 'amateur-backhand-1', 'amateur-volley-1', 'amateur-athleticism-1']);
+    }
+    return new Set(stored);
+  });
+  const [loadout, setLoadout] = useState<Loadout>(() => loadFromStorage<Loadout>(STORAGE_KEYS.loadout, DEFAULT_LOADOUT));
   const [selectedAi, setSelectedAi] = useState<AiProfile>(AI_PROFILES[0]);
   const [difficulty, setDifficulty] = useState<DifficultyTier>('amateur');
   const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
   const [pendingTournamentMatchId, setPendingTournamentMatchId] = useState<string | null>(null);
   const [tournamentEarnings, setTournamentEarnings] = useState(0);
   const [tournamentResult, setTournamentResult] = useState<TournamentResultState | null>(null);
-  const [players, setPlayers] = useState<PlayerProfile[]>(createInitialPlayers);
+  const [players, setPlayers] = useState<PlayerProfile[]>(() => {
+    const defaults = createInitialPlayers();
+    const stored = loadFromStorage<PlayerProfile[] | null>(STORAGE_KEYS.players, null);
+    if (!stored) return defaults;
+    const storedById = new Map(stored.map(player => [player.id, player]));
+    return defaults.map(player => {
+      const saved = storedById.get(player.id);
+      if (!saved) return player;
+      return {
+        ...player,
+        ...saved,
+        loadout: saved.loadout ?? player.loadout,
+        rankingPoints: saved.rankingPoints ?? player.rankingPoints,
+        minShotTier: saved.minShotTier ?? player.minShotTier,
+      };
+    });
+  });
   const [pendingBox, setPendingBox] = useState<{ item: ShopItem; alreadyOwned: boolean } | null>(null);
 
   const boxPrices: Record<ShotType, number> = {
@@ -327,6 +366,13 @@ const App: React.FC = () => {
     () => new Map(players.map(player => [player.id, player])),
     [players]
   );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(STORAGE_KEYS.wallet, JSON.stringify(wallet));
+    window.localStorage.setItem(STORAGE_KEYS.ownedIds, JSON.stringify(Array.from(ownedIds)));
+    window.localStorage.setItem(STORAGE_KEYS.loadout, JSON.stringify(loadout));
+    window.localStorage.setItem(STORAGE_KEYS.players, JSON.stringify(players));
+  }, [loadout, ownedIds, players, wallet]);
   const rankedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
@@ -789,6 +835,12 @@ const App: React.FC = () => {
     );
   }
 
+  if (screen === 'settings') {
+    return (
+      <Settings onBack={() => setScreen('menu')} />
+    );
+  }
+
   if (screen === 'player') {
     return (
       <Shop
@@ -854,6 +906,7 @@ const App: React.FC = () => {
       onChallenge={() => setScreen('opponent')}
       onTournaments={() => setScreen('tournaments')}
       onRankings={() => setScreen('rankings')}
+      onSettings={() => setScreen('settings')}
     />
   );
 };

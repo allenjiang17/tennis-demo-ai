@@ -152,7 +152,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const getPlayerSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.1 + (speedStat / 100) * 0.6;
+    const baseMultiplier = 0.4 + (speedStat / 100) * 0.4;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -162,7 +162,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const getAiSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, aiStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, aiStats.athleticism.stamina));
-    const baseMultiplier = 0.1 + (speedStat / 100) * 0.6;
+    const baseMultiplier = 0.4 + (speedStat / 100) * 0.4;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
@@ -172,7 +172,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const playerSpeedDebug = useMemo(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
     const staminaStat = Math.max(0, Math.min(100, playerStats.athleticism.stamina));
-    const baseMultiplier = 0.1 + (speedStat / 100) * 0.6;
+    const baseMultiplier = 0.4 + (speedStat / 100) * 0.4;
     const baseSpeed = PHYSICS.PLAYER_SPEED * baseMultiplier;
     const fatigueRate = (1 - staminaStat / 100) * 0.05;
     const staminaFactor = Math.max(0.6, 1 - rallyCount * fatigueRate);
