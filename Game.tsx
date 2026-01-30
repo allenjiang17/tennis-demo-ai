@@ -132,6 +132,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const audioCtxRef = useRef<AudioContext | null>(null);
   const serveInProgressRef = useRef(false);
   const initialServerRef = useRef<'player' | 'opponent'>('player');
+  const lastFrameTimeRef = useRef<number | null>(null);
   const setBallBounced = (value: boolean) => {
     ballHasBouncedRef.current = value;
     setBallHasBounced(value);
@@ -221,20 +222,30 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   // Movement loop
   useEffect(() => {
     let frameId: number;
+    lastFrameTimeRef.current = null;
     const moveLoop = () => {
+      const now = performance.now();
+      const last = lastFrameTimeRef.current;
+      const rawDeltaMs = last === null ? 0 : now - last;
+      const deltaMs = Math.min(rawDeltaMs, 50);
+      lastFrameTimeRef.current = now;
+
       if (gameState.status === GameStatus.PLAYING) {
+        const baseFrameMs = 1000 / 60;
         // Player Movement
         const playerSpeed = getPlayerSpeed();
+        const playerSpeedPerMs = playerSpeed / baseFrameMs;
         setPlayerPos(prev => {
           if (isServePending && server === 'player') {
             return prev;
           }
           let newX = prev.x;
           let newY = prev.y;
-          if (keysPressed.current.has('ArrowLeft')) newX -= playerSpeed;
-          if (keysPressed.current.has('ArrowRight')) newX += playerSpeed;
-          if (keysPressed.current.has('ArrowUp')) newY -= playerSpeed;
-          if (keysPressed.current.has('ArrowDown')) newY += playerSpeed;
+          const moveStep = playerSpeedPerMs * deltaMs;
+          if (keysPressed.current.has('ArrowLeft')) newX -= moveStep;
+          if (keysPressed.current.has('ArrowRight')) newX += moveStep;
+          if (keysPressed.current.has('ArrowUp')) newY -= moveStep;
+          if (keysPressed.current.has('ArrowDown')) newY += moveStep;
           return {
             x: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_X, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_X, newX)),
             y: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_Y, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_Y, newY))
@@ -243,11 +254,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
         // AI Movement
         const aiSpeed = getAiSpeed();
+        const aiSpeedPerMs = aiSpeed / baseFrameMs;
         setAiPos(prev => {
           const dx = aiTargetXRef.current - prev.x;
           const dy = aiTargetYRef.current - prev.y;
-          const nextX = Math.abs(dx) < aiSpeed ? aiTargetXRef.current : prev.x + Math.sign(dx) * aiSpeed;
-          const nextY = Math.abs(dy) < aiSpeed ? aiTargetYRef.current : prev.y + Math.sign(dy) * aiSpeed;
+          const moveStep = aiSpeedPerMs * deltaMs;
+          const nextX = Math.abs(dx) < moveStep ? aiTargetXRef.current : prev.x + Math.sign(dx) * moveStep;
+          const nextY = Math.abs(dy) < moveStep ? aiTargetYRef.current : prev.y + Math.sign(dy) * moveStep;
           return {
             x: Math.max(AI_COURT_BOUNDS.MIN_X, Math.min(AI_COURT_BOUNDS.MAX_X, nextX)),
             y: Math.max(AI_COURT_BOUNDS.MIN_Y, Math.min(AI_COURT_BOUNDS.MAX_Y, nextY)),
@@ -255,7 +268,6 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         });
 
         // Update live ball position for hit checks and UI cues
-        const now = performance.now();
         const elapsed = now - shotStartTimeRef.current;
         const progress = Math.min(1, shotDurationRef.current > 0 ? elapsed / shotDurationRef.current : 1);
         const easedProgress = ballHasBouncedRef.current
@@ -456,11 +468,6 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       }
     }, 20);
   }, [playHitSound, playNetCordSound]);
-
-  const triggerAiCommentary = async (quality: ShotQuality) => {
-    const text = 'Wow!';
-    setCommentary(text);
-  };
 
   const getPowerDuration = useCallback((shotType: 'serve' | 'forehand' | 'backhand' | 'volley' | 'dropshot', power: number) => {
     const baseDuration = (() => {
@@ -858,7 +865,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const distVolley = Math.hypot(volleyTarget.x - startX, volleyTarget.y - startY);
     const volleyArrivalMs = Math.max(120, hitSpeed * (distTotal > 0 ? distVolley / distTotal : 0.5));
     const aiSpeed = getAiSpeed();
-    const aiTravelMs = aiSpeed > 0 ? (aiVolleyDist / aiSpeed) * (1000 / 60) : Number.POSITIVE_INFINITY;
+    const aiSpeedPerMs = aiSpeed / (1000 / 60);
+    const aiTravelMs = aiSpeedPerMs > 0 ? (aiVolleyDist / aiSpeedPerMs) : Number.POSITIVE_INFINITY;
     const aiCanReachVolley = aiVolleyDist < aiVolleyRadius || aiTravelMs <= volleyArrivalMs;
     const aiWillVolley = aiVolleyCandidate && aiCanReachVolley;
     const dropStopY = Math.max(24, aiBounceY - 24);
@@ -1237,7 +1245,6 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         targetX = 95.5 + (4.5 - 95.5) * lerpT;
       }
       
-      triggerAiCommentary(ShotQuality.PERFECT);
       const hitPower = isVolley
         ? 50 + playerStats.volley.control * 0.25
         : (stroke === 'FH' ? playerStats.forehand.power : playerStats.backhand.power);
@@ -1259,7 +1266,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         isServe: false,
       });
     }
-  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, getTimingScale, isBallLiveRef, isServeInBox, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerAiCommentary, triggerFeedback, isServePending]);
+  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, getTimingScale, isBallLiveRef, isServeInBox, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);

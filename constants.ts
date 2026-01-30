@@ -3,7 +3,7 @@ import { ShotQuality } from './types';
 
 export const PHYSICS = {
   BALL_SPEED_BASE: 1000, //no effect
-  PLAYER_SPEED: 0.6,      // Movement increment per frame
+  PLAYER_SPEED: 0.8,      // Movement increment per frame
   HIT_RADIUS: 12,         // Distance units for successful hit
   COURT_BOUNDS: {
     MIN_X: 5, MAX_X: 95,
