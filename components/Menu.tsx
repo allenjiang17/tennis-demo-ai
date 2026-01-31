@@ -36,7 +36,7 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
             </div>
             <div className="relative h-full w-72 border-l border-white/10 bg-black/30 lg:w-96">
               <img
-                src="/menu/tournaments.png"
+                src={`${import.meta.env.BASE_URL}menu/tournaments.png`}
                 alt="Career"
                 className="h-full w-full object-cover object-[50%_30%] opacity-90 transition-opacity group-hover:opacity-100"
               />
@@ -59,7 +59,7 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
             </div>
             <div className="relative h-full w-72 border-l border-white/10 bg-black/30 lg:w-96">
               <img
-                src="/menu/player-page.png"
+                src={`${import.meta.env.BASE_URL}menu/player-page.png`}
                 alt="Player Page"
                 className="h-full w-full object-cover object-[55%_30%] opacity-90 transition-opacity group-hover:opacity-100"
               />
@@ -83,7 +83,7 @@ const Menu: React.FC<MenuProps> = ({ onPlayerPage, onShotShop, onChallenge, onTo
             </div>
             <div className="relative h-full w-72 border-l border-white/10 bg-black/30 lg:w-96">
               <img
-                src="/menu/shot-shop.png"
+                src={`${import.meta.env.BASE_URL}menu/shot-shop.png`}
                 alt="Shot Shop"
                 className="h-full w-full object-cover object-[50%_45%] opacity-90 transition-opacity group-hover:opacity-100"
               />

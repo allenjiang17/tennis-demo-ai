@@ -120,7 +120,7 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack, o
                   }`} />
                   <div className="relative h-80 w-56 overflow-hidden rounded-2xl border border-yellow-200/40 bg-black/30 shadow-[0_0_50px_rgba(250,204,21,0.75)]">
                     <img
-                      src={`/shots/${item.id}.png`}
+                      src={`${import.meta.env.BASE_URL}shots/${item.id}.png`}
                       alt="Unique shot"
                       className="h-full w-full object-cover"
                     />
