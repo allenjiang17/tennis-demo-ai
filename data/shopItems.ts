@@ -277,12 +277,12 @@ export const SHOP_ITEMS: ShopItem[] = [
  
 
   // Legendary (purple)
-  { id: 'federer-serve', player: 'Federer', shot: 'serve', stats: { power: 100, spin: 60, control: 120, shape: 60 }, price: 25600, tier: 'legendary', description: 'Flatter serve with surgical precision.' },
+  { id: 'federer-serve', player: 'Federer', shot: 'serve', stats: { power: 103, spin: 60, control: 120, shape: 60 }, price: 25600, tier: 'legendary', description: 'Flatter serve with surgical precision.' },
   { id: 'roddick-serve', player: 'Roddick', shot: 'serve', stats: { power: 110, spin: 65, control: 80, shape: 55 }, price: 25600, tier: 'legendary', description: 'Solid serve with quick heat.' },
   { id: 'serena-serve', player: 'Serena', shot: 'serve', stats: { power: 95, spin: 60, control: 88, shape: 50 }, price: 25600, tier: 'legendary', description: 'Explosive serve with clean lines.' },
-  { id: 'sampras-serve', player: 'Sampras', shot: 'serve', stats: { power: 100, spin: 60, control: 90, shape: 55 }, price: 25600, tier: 'legendary', description: 'Powerful serve with precise placement.' },
-  { id: 'djokovic-serve', player: 'Djokovic', shot: 'serve', stats: { power: 88, spin: 70, control: 102, shape: 65 }, price: 25600, tier: 'legendary', description: 'Consistent' },
-  { id: 'zverev-serve', player: 'Zverev', shot: 'serve', stats: { power: 95, spin: 68, control: 92, shape: 60 }, price: 25600, tier: 'legendary', description: 'Big serve with solid accuracy.' },
+  { id: 'sampras-serve', player: 'Sampras', shot: 'serve', stats: { power: 110, spin: 60, control: 90, shape: 55 }, price: 25600, tier: 'legendary', description: 'Powerful serve with precise placement.' },
+  { id: 'djokovic-serve', player: 'Djokovic', shot: 'serve', stats: { power: 96, spin: 70, control: 102, shape: 65 }, price: 25600, tier: 'legendary', description: 'Consistent' },
+  { id: 'zverev-serve', player: 'Zverev', shot: 'serve', stats: { power: 98, spin: 68, control: 92, shape: 60 }, price: 25600, tier: 'legendary', description: 'Big serve with solid accuracy.' },
 
   { id: 'alcaraz-forehand', player: 'Alcaraz', shot: 'forehand', stats: { power: 90, spin: 92, control: 88, shape: 70 }, price: 25600, tier: 'legendary', description: 'Whippy acceleration with sharp angles.' },
   { id: 'federer-forehand', player: 'Federer', shot: 'forehand', stats: { power: 85, spin: 80, control: 95, shape: 75 }, price: 25600, tier: 'legendary', description: 'Fluent technique with precise depth.' },

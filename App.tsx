@@ -1341,7 +1341,7 @@ const App: React.FC = () => {
         </>
       ) : (
         <>
-          <span className="text-emerald-200 font-semibold">Left / Right</span> to choose serve placement.
+          <span className="text-emerald-200 font-semibold">Arrow keys</span> to aim your serve target.
           <br />
           <span className="text-emerald-200 font-semibold">Space</span> to serve.
         </>

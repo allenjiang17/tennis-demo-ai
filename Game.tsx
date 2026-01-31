@@ -41,6 +41,38 @@ const SERVE_TARGET_X = {
   deuce: { wide: 10, middle: 45 },
   ad: { wide: 85, middle: 55 },
 };
+const SERVE_TARGET_X_RANGE = {
+  deuce: { min: PHYSICS.COURT_BOUNDS.MIN_X, max: 50 },
+  ad: { min: 50, max: PHYSICS.COURT_BOUNDS.MAX_X },
+};
+const getServeTargetBounds = (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
+  const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
+  const xRange = SERVE_TARGET_X_RANGE[effectiveSide];
+  const playerMaxY = SERVE_BOX_Y.topMin + (SERVE_NET_Y - SERVE_BOX_Y.topMin) * 0.5;
+  const opponentMinY = SERVE_BOX_Y.bottomMax - (SERVE_BOX_Y.bottomMax - SERVE_NET_Y) * 0.5;
+  const yRange = serveOwner === 'player'
+    ? { min: SERVE_BOX_Y.topMin, max: playerMaxY }
+    : { min: opponentMinY, max: SERVE_BOX_Y.bottomMax };
+  return { minX: xRange.min, maxX: xRange.max, minY: yRange.min, maxY: yRange.max };
+};
+const getServeTargetDefault = (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
+  const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
+  const bounds = getServeTargetBounds(serveOwner, side);
+  const edgeX = effectiveSide === 'deuce'
+    ? bounds.minX + 2
+    : bounds.maxX - 2;
+  return {
+    x: edgeX,
+    y: serveOwner === 'player' ? bounds.minY + 4 : bounds.maxY - 4,
+  };
+};
+const clampServeTarget = (target: { x: number; y: number }, serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
+  const bounds = getServeTargetBounds(serveOwner, side);
+  return {
+    x: Math.max(bounds.minX, Math.min(bounds.maxX, target.x)),
+    y: Math.max(bounds.minY, Math.min(bounds.maxY, target.y)),
+  };
+};
 const VOLLEY_TARGET_Y = 71;
 const AI_VOLLEY_ZONE_Y = 60;
 
@@ -120,7 +152,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const [servePointIndex, setServePointIndex] = useState(0);
   const [serveNumber, setServeNumber] = useState(1);
   const [isServePending, setIsServePending] = useState(true);
-  const [serveTarget, setServeTarget] = useState<'wide' | 'middle'>('wide');
+  const [serveTarget, setServeTarget] = useState(() => getServeTargetDefault('player', 'deuce'));
   const [rosterOpen, setRosterOpen] = useState<'player' | 'opponent' | null>(null);
   const [aiRunTarget, setAiRunTarget] = useState<{ x: number; y: number } | null>(null);
   const matchReportedRef = useRef(false);
@@ -172,6 +204,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const timer = setTimeout(() => setShowStartButton(true), 2000);
     return () => clearTimeout(timer);
   }, [gameState.status]);
+
+  useEffect(() => {
+    if (server !== 'player' || !isServePending) return;
+    setServeTarget(getServeTargetDefault('player', serveSide));
+  }, [isServePending, servePointIndex, serveSide, server]);
 
   // Helper to show feedback briefly
   const triggerFeedback = useCallback((text: string, duration = 800) => {
@@ -1215,8 +1252,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
     
-    if (isServePending && server === 'player' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
-      setServeTarget(prev => (prev === 'wide' ? 'middle' : 'wide'));
+    if (isServePending && server === 'player' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+      e.preventDefault();
+      const step = 1;
+      const delta = {
+        x: (e.code === 'ArrowLeft' ? -step : e.code === 'ArrowRight' ? step : 0),
+        y: (e.code === 'ArrowUp' ? -step : e.code === 'ArrowDown' ? step : 0),
+      };
+      setServeTarget(prev => clampServeTarget({ x: prev.x + delta.x, y: prev.y + delta.y }, 'player', serveSide));
       return;
     }
     if ((e.code === 'Space' || e.code === 'KeyX') && gameState.status === GameStatus.PLAYING) {
@@ -1225,17 +1268,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const serveStats = getServeStats('player');
         const serveDuration = getPowerDuration('serve', serveStats.power);
         const p = currentPlayerPosRef.current;
-        const targetX = getServeTargetX('player', serveSide, serveTarget);
         const isTutorialNoFault = Boolean(tutorial);
         const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
-        let targetPoint = { x: targetX + jitter.x, y: SERVE_TARGET_Y.top + jitter.y };
+        let targetPoint = { x: serveTarget.x + jitter.x, y: serveTarget.y + jitter.y };
         const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin);
         const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y));
         if (netFault) {
-          targetPoint = { x: targetX, y: SERVE_NET_Y };
+          targetPoint = { x: serveTarget.x, y: SERVE_NET_Y };
         }
         if (isTutorialNoFault) {
-          targetPoint = { x: targetX, y: SERVE_TARGET_Y.top };
+          targetPoint = { x: serveTarget.x, y: serveTarget.y };
         }
 
         if (netFault || outFault) {
@@ -1387,7 +1429,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         isVolley,
       });
     }
-  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, getTimingScale, isBallLiveRef, isServeInBox, isTutorialOpeningServe, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending, tutorial]);
+  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getTimingScale, isBallLiveRef, isServeInBox, isTutorialOpeningServe, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending, tutorial]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);
@@ -1575,10 +1617,20 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
   const serveUiStats = getServeStats('player');
   const serveNetChance = tutorial ? 0 : getServeNetChance(serveUiStats.spin);
+  const serveSpeedMph = useMemo(() => {
+    const servePower = Math.max(0, Math.min(100, serveUiStats.power));
+    const minDuration = getPowerDuration('serve', 0);
+    const maxDuration = getPowerDuration('serve', 100);
+    const duration = getPowerDuration('serve', servePower);
+    const denom = Math.max(1, minDuration - maxDuration);
+    const normalized = (minDuration - duration) / denom;
+    const mph = 70 + normalized * 60;
+    return Math.round(mph);
+  }, [getPowerDuration, serveUiStats.power]);
   const serveDebug = isServePending && server === 'player'
     ? {
-        x: getServeTargetX('player', serveSide, serveTarget),
-        y: SERVE_TARGET_Y.top,
+        x: serveTarget.x,
+        y: serveTarget.y,
         radius: isTutorialOpeningServe
           ? 0
           : ((100 - Math.min(100, Math.max(0, serveUiStats.control))) / 100) * SERVE_JITTER_MAX,
@@ -1711,29 +1763,15 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
                   />
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setServeTarget('wide')}
-                  className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${serveTarget === 'wide' ? 'bg-white text-slate-900 border-white' : 'bg-white/5 text-white/70 border-white/20 hover:bg-white/10'}`}
-                >
-                  Wide
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setServeTarget('middle')}
-                  className={`px-3 py-1 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${serveTarget === 'middle' ? 'bg-white text-slate-900 border-white' : 'bg-white/5 text-white/70 border-white/20 hover:bg-white/10'}`}
-                >
-                  Middle
-                </button>
+              <div className="mt-3 text-[9px] font-orbitron uppercase tracking-widest text-white/70">
+                <div className="flex items-center gap-2">
+                  <span>Speed (mph)</span>
+                  <span>{serveSpeedMph}</span>
+                </div>
               </div>
             </>
           )}
           <div className="mt-4 border-t border-white/10 pt-3 text-[9px] font-orbitron uppercase tracking-widest text-white/70">
-            <div className="flex items-center justify-between">
-              <span>Speed (mph)</span>
-              <span>{Math.round(playerSpeedDebug.speedMph)}</span>
-            </div>
             <div className="mt-1 flex items-center justify-between text-white/50">
               <span>Stamina</span>
               <span>{Math.round(playerSpeedDebug.staminaFactor * 100)}%</span>
