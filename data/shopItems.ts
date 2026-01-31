@@ -304,9 +304,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'de-minaur-athleticism', player: 'De Minaur', shot: 'athleticism', stats: { speed: 100, stamina: 110 }, price: 25600, tier: 'legendary', description: 'Lightning quick with solid endurance.' },
 
   // Unique (gold) with perk
-  { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 130, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Pure Power: Bonus to serve power', description: 'Signature placement plus extra bite.' },
-  { id: 'special-nadal-forehand', player: 'Nadal', shot: 'forehand', stats: { power: 98, spin: 180, control: 100, shape: 90 }, price: 245760, tier: 'unique', perk: 'Heavy topspin: forces deeper opponent positioning.', description: 'Extreme topspin that kicks high.' },
-  { id: 'special-djokovic-backhand', player: 'Djokovic', shot: 'backhand', stats: { power: 95, spin: 120, control: 200, shape: 80 }, price: 245760, tier: 'unique', perk: 'Immovable: reduces knockback on deep shots.', description: 'Unbreakable defense with pinpoint depth.' },
-  { id: 'special-federer-volley', player: 'Federer', shot: 'volley', stats: { control: 150, accuracy: 150 }, price: 245760, tier: 'unique', perk: 'Soft hands: reduces volley timing sensitivity.', description: 'Crisp touch with surgical angles.' },
-  { id: 'special-alcaraz-athleticism', player: 'Alcaraz', shot: 'athleticism', stats: { speed: 95, stamina: 150 }, price: 245760, tier: 'unique', perk: 'Grinding: speed loss per rally hit reduced.', description: 'Relentless movement with tireless legs.' },
+  { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 120, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Pure Power: Bonus to serve power', description: 'Signature placement plus extra bite.' },
+  { id: 'special-nadal-forehand', player: 'Nadal', shot: 'forehand', stats: { power: 95, spin: 180, control: 100, shape: 90 }, price: 245760, tier: 'unique', perk: 'Heavy topspin: forces deeper opponent positioning.', description: 'Extreme topspin that kicks high.' },
+  { id: 'special-djokovic-backhand', player: 'Djokovic', shot: 'backhand', stats: { power: 95, spin: 120, control: 180, shape: 80 }, price: 245760, tier: 'unique', perk: 'Immovable: reduces knockback on deep shots.', description: 'Unbreakable defense with pinpoint depth.' },
+  { id: 'special-federer-volley', player: 'Federer', shot: 'volley', stats: { control: 160, accuracy: 160 }, price: 245760, tier: 'unique', perk: 'Soft hands: reduces volley timing sensitivity.', description: 'Crisp touch with surgical angles.' },
+  { id: 'special-alcaraz-athleticism', player: 'Alcaraz', shot: 'athleticism', stats: { speed: 98, stamina: 200 }, price: 245760, tier: 'unique', perk: 'Grinding: speed loss per rally hit reduced.', description: 'Relentless movement with tireless legs.' },
 ];
