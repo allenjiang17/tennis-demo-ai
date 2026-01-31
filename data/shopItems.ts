@@ -263,7 +263,6 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'nadal-serve', player: 'Nadal', shot: 'serve', stats: { power: 90, spin: 70, control: 86, shape: 64 }, price: 2560, tier: 'elite', description: 'Nadal serve tuned for elite competition.' },
   { id: 'nadal-backhand', player: 'Nadal', shot: 'backhand', stats: { power: 86, spin: 78, control: 86, shape: 68 }, price: 2560, tier: 'elite', description: 'Nadal backhand tuned for elite competition.' },
   { id: 'nadal-volley', player: 'Nadal', shot: 'volley', stats: { control: 98, accuracy: 90 }, price: 2560, tier: 'elite', description: 'Nadal volley tuned for elite competition.' },
-  { id: 'nadal-athleticism', player: 'Nadal', shot: 'athleticism', stats: { speed: 88, stamina: 90 }, price: 2560, tier: 'elite', description: 'Nadal athleticism tuned for elite competition.' },
   { id: 'sampras-forehand', player: 'Sampras', shot: 'forehand', stats: { power: 88, spin: 80, control: 86, shape: 70 }, price: 2560, tier: 'elite', description: 'Sampras forehand tuned for elite competition.' },
   { id: 'sampras-backhand', player: 'Sampras', shot: 'backhand', stats: { power: 86, spin: 78, control: 86, shape: 68 }, price: 2560, tier: 'elite', description: 'Sampras backhand tuned for elite competition.' },
   { id: 'sampras-volley', player: 'Sampras', shot: 'volley', stats: { control: 98, accuracy: 90 }, price: 2560, tier: 'elite', description: 'Sampras volley tuned for elite competition.' },
@@ -299,9 +298,10 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'alcaraz-volley', player: 'Alcaraz', shot: 'volley', stats: { control: 150, accuracy: 100 }, price: 25600, tier: 'legendary', description: 'Aggressive volley with sharp angles.' },
   { id: 'murray-volley', player: 'Murray', shot: 'volley', stats: { control: 130, accuracy: 100 }, price: 25600, tier: 'legendary', description: 'Reliable hands with solid depth.' },
 
-  { id: 'murray-athleticism', player: 'Murray', shot: 'athleticism', stats: { speed: 85, stamina: 90 }, price: 25600, tier: 'legendary', description: 'Relentless coverage with elite endurance.' },
-  { id: 'djokovic-athleticism', player: 'Djokovic', shot: 'athleticism', stats: { speed: 92, stamina: 120 }, price: 25600, tier: 'legendary', description: 'Exceptional movement with supreme stamina.' },
-  { id: 'de-minaur-athleticism', player: 'De Minaur', shot: 'athleticism', stats: { speed: 100, stamina: 110 }, price: 25600, tier: 'legendary', description: 'Lightning quick with solid endurance.' },
+  { id: 'nadal-athleticism', player: 'Nadal', shot: 'athleticism', stats: { speed: 92, stamina: 120 }, price: 2560, tier: 'legendary', description: 'Nadal athleticism tuned for elite competition.' },
+  { id: 'murray-athleticism', player: 'Murray', shot: 'athleticism', stats: { speed: 88, stamina: 130 }, price: 25600, tier: 'legendary', description: 'Relentless coverage with elite endurance.' },
+  { id: 'djokovic-athleticism', player: 'Djokovic', shot: 'athleticism', stats: { speed: 90, stamina: 110 }, price: 25600, tier: 'legendary', description: 'Exceptional movement with supreme stamina.' },
+  { id: 'de-minaur-athleticism', player: 'De Minaur', shot: 'athleticism', stats: { speed: 100, stamina: 78 }, price: 25600, tier: 'legendary', description: 'Lightning quick with solid endurance.' },
 
   // Unique (gold) with perk
   { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 110, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Ace master: 20% chance for unreturnable serve (5x power/no fault).', description: 'Explosive pace with a deadly free-point chance.' },
