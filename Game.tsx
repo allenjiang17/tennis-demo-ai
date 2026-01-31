@@ -35,7 +35,7 @@ const cubicBezierEase = (t: number, x1: number, y1: number, x2: number, y2: numb
 };
 const SERVE_TARGET_Y = { top: 60, bottom: 120 };
 const SERVE_NET_Y = 90;
-const SERVE_JITTER_MAX = 30;
+const SERVE_JITTER_MAX = 20;
 const SERVE_BOX_Y = { topMin: 45, topMax: 90, bottomMin: 90, bottomMax: 135 };
 const SERVE_TARGET_X = {
   deuce: { wide: 10, middle: 45 },
@@ -44,6 +44,30 @@ const SERVE_TARGET_X = {
 const SERVE_TARGET_X_RANGE = {
   deuce: { min: PHYSICS.COURT_BOUNDS.MIN_X, max: 50 },
   ad: { min: 50, max: PHYSICS.COURT_BOUNDS.MAX_X },
+};
+const SERVE_TARGET_STORAGE_PREFIX = 'tennis.serveTarget.';
+const loadServeTarget = (surface: CourtSurface, side: 'deuce' | 'ad') => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(`${SERVE_TARGET_STORAGE_PREFIX}${surface}.${side}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { x: number; y: number };
+    if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+const saveServeTarget = (surface: CourtSurface, side: 'deuce' | 'ad', target: { x: number; y: number }) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      `${SERVE_TARGET_STORAGE_PREFIX}${surface}.${side}`,
+      JSON.stringify({ x: target.x, y: target.y })
+    );
+  } catch {
+    // ignore storage errors
+  }
 };
 const getServeTargetBounds = (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
   const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
@@ -55,15 +79,24 @@ const getServeTargetBounds = (serveOwner: 'player' | 'opponent', side: 'deuce' |
     : { min: opponentMinY, max: SERVE_BOX_Y.bottomMax };
   return { minX: xRange.min, maxX: xRange.max, minY: yRange.min, maxY: yRange.max };
 };
-const getServeTargetDefault = (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
+const getServeTargetEdgeX = (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
   const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
   const bounds = getServeTargetBounds(serveOwner, side);
+  return effectiveSide === 'deuce' ? bounds.minX : bounds.maxX;
+};
+const getServeTargetDefault = (serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad', control: number) => {
+  const effectiveSide = serveOwner === 'opponent' ? (side === 'deuce' ? 'ad' : 'deuce') : side;
+  const bounds = getServeTargetBounds(serveOwner, side);
+  const controlClamp = Math.max(0, Math.min(100, control));
+  const controlT = controlClamp / 100;
+  const edgeInset = 8 - controlT * 6; // higher control = closer to sideline
+  const lineInset = 8 - controlT * 6; // higher control = closer to service line
   const edgeX = effectiveSide === 'deuce'
-    ? bounds.minX + 2
-    : bounds.maxX - 2;
+    ? bounds.minX + edgeInset
+    : bounds.maxX - edgeInset;
   return {
     x: edgeX,
-    y: serveOwner === 'player' ? bounds.minY + 4 : bounds.maxY - 4,
+    y: serveOwner === 'player' ? bounds.minY + lineInset : bounds.maxY - lineInset,
   };
 };
 const clampServeTarget = (target: { x: number; y: number }, serveOwner: 'player' | 'opponent', side: 'deuce' | 'ad') => {
@@ -152,7 +185,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const [servePointIndex, setServePointIndex] = useState(0);
   const [serveNumber, setServeNumber] = useState(1);
   const [isServePending, setIsServePending] = useState(true);
-  const [serveTarget, setServeTarget] = useState(() => getServeTargetDefault('player', 'deuce'));
+  const [serveTarget, setServeTarget] = useState(() => getServeTargetDefault('player', 'deuce', 50));
   const [rosterOpen, setRosterOpen] = useState<'player' | 'opponent' | null>(null);
   const [aiRunTarget, setAiRunTarget] = useState<{ x: number; y: number } | null>(null);
   const matchReportedRef = useRef(false);
@@ -183,6 +216,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const initialServerRef = useRef<'player' | 'opponent'>('player');
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastRenderTimeRef = useRef<number>(0);
+  const aiServeTargetRef = useRef<{ x: number; y: number } | null>(null);
   const lastTutorialTipRef = useRef<{ primary: string; secondary: string }>({ primary: '', secondary: '' });
   const lastTutorialTipVisibleRef = useRef<{ primary: boolean; secondary: boolean }>({ primary: false, secondary: false });
   const meterValueRef = useRef(0);
@@ -220,8 +254,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
   useEffect(() => {
     if (server !== 'player' || !isServePending) return;
-    setServeTarget(getServeTargetDefault('player', serveSide));
-  }, [isServePending, servePointIndex, serveSide, server]);
+    const control = serveNumber === 1 ? playerStats.serveFirst.control : playerStats.serveSecond.control;
+    const stored = loadServeTarget(surface, serveSide);
+    const base = stored ?? getServeTargetDefault('player', serveSide, control);
+    setServeTarget(clampServeTarget(base, 'player', serveSide));
+  }, [isServePending, playerStats.serveFirst.control, playerStats.serveSecond.control, serveNumber, servePointIndex, serveSide, server, surface]);
+
+  useEffect(() => {
+    if (server !== 'player' || !isServePending) return;
+    saveServeTarget(surface, serveSide, clampServeTarget(serveTarget, 'player', serveSide));
+  }, [isServePending, serveSide, serveTarget, server, surface]);
 
   // Helper to show feedback briefly
   const triggerFeedback = useCallback((text: string, duration = 800) => {
@@ -668,9 +710,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   }, [surfacePostBounceMultiplier]);
 
 
-  const getServeNetChance = useCallback((spin: number) => {
+  const getServeNetChance = useCallback((spin: number, targetY: number) => {
     const clamped = Math.max(0, Math.min(100, spin));
-    return Math.max(0.05, 0.35 - (clamped / 100) * 0.25);
+    const base = Math.max(0.05, 0.35 - (clamped / 100) * 0.25);
+    const maxDist = targetY <= SERVE_NET_Y
+      ? Math.max(1, SERVE_NET_Y - SERVE_BOX_Y.topMin)
+      : Math.max(1, SERVE_BOX_Y.bottomMax - SERVE_NET_Y);
+    const distance = Math.abs(targetY - SERVE_NET_Y);
+    const proximity = Math.max(0, Math.min(1, 1 - distance / maxDist));
+    const targetBoost = proximity * 0.2;
+    return Math.max(0.05, Math.min(0.6, base + targetBoost));
   }, []);
 
   const getServeStats = useCallback((owner: 'player' | 'opponent') => {
@@ -680,16 +729,43 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     return serveNumber === 1 ? aiStats.serveFirst : aiStats.serveSecond;
   }, [aiStats.serveFirst, aiStats.serveSecond, playerStats, serveNumber]);
 
+  const getAiServeTarget = useCallback((side: 'deuce' | 'ad', control: number, awayBias: number, serveNum: number) => {
+    const bounds = getServeTargetBounds('opponent', side);
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const edgeX = getServeTargetEdgeX('opponent', side);
+    const controlT = Math.max(0, Math.min(1, control / 100));
+    const awayT = Math.max(0, Math.min(1, awayBias));
+    const secondServeBias = serveNum === 2 ? 0.6 : 1;
+    const adjustedAwayT = awayT * secondServeBias;
+    const edgeBias = Math.min(1, adjustedAwayT * (0.35 + 0.65 * controlT));
+    const innerEdgeX = edgeX === bounds.minX ? bounds.maxX : bounds.minX;
+    const pickWide = Math.random() < 0.5;
+    const targetEdgeX = pickWide ? edgeX : innerEdgeX;
+    const baseX = centerX + (targetEdgeX - centerX) * edgeBias;
+    const yT = 0.4 + 0.6 * controlT;
+    const baseY = bounds.minY + (bounds.maxY - bounds.minY) * yT;
+    return clampServeTarget({ x: baseX, y: baseY }, 'opponent', side);
+  }, []);
+
+  useEffect(() => {
+    if (server !== 'opponent' || !isServePending) return;
+    const serveStats = getServeStats('opponent');
+    aiServeTargetRef.current = getAiServeTarget(serveSide, serveStats.control, aiProfile.tendencies.awayBias, serveNumber);
+  }, [aiProfile.tendencies.awayBias, getAiServeTarget, getServeStats, isServePending, serveNumber, serveSide, server]);
+
+  const getServeJitterRadius = useCallback((control: number) => (
+    ((120 - Math.max(0, Math.min(120, control))) / 100) * SERVE_JITTER_MAX
+  ), []);
+
   const getServeJitter = useCallback((control: number) => {
-    const clamped = Math.max(0, Math.min(100, control));
-    const radius = ((100 - clamped) / 100) * SERVE_JITTER_MAX;
+    const radius = getServeJitterRadius(control);
     const angle = Math.random() * Math.PI * 2;
     const r = Math.random() * radius;
     return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
-  }, []);
+  }, [getServeJitterRadius]);
 
-  const shouldServeHitNet = useCallback((spin: number) => (
-    Math.random() < getServeNetChance(spin)
+  const shouldServeHitNet = useCallback((spin: number, targetY: number) => (
+    Math.random() < getServeNetChance(spin, targetY)
   ), [getServeNetChance]);
 
   const getControlRadius = useCallback((control: number) => (
@@ -1299,7 +1375,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const isTutorialNoFault = Boolean(tutorial);
         const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
         let targetPoint = { x: serveTarget.x + jitter.x, y: serveTarget.y + jitter.y };
-        const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin);
+        const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin, targetPoint.y);
         const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y));
         if (netFault) {
           targetPoint = { x: serveTarget.x, y: SERVE_NET_Y };
@@ -1546,16 +1622,17 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       const serveStats = getServeStats('opponent');
       const serveDuration = getPowerDuration('serve', serveStats.power);
       const start = currentAiPosRef.current;
-      const serveTargetX = getServeTargetX('opponent', serveSide, Math.random() < 0.5 ? 'wide' : 'middle');
+      const aiTarget = aiServeTargetRef.current
+        ?? getAiServeTarget(serveSide, serveStats.control, aiProfile.tendencies.awayBias, serveNumber);
       const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
-      let targetPoint = { x: serveTargetX + jitter.x, y: SERVE_TARGET_Y.bottom + jitter.y };
-      const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin);
+      let targetPoint = { x: aiTarget.x + jitter.x, y: aiTarget.y + jitter.y };
+      const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin, targetPoint.y);
       const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('opponent', serveSide, targetPoint.x, targetPoint.y));
       if (netFault) {
-        targetPoint = { x: serveTargetX, y: SERVE_NET_Y };
+        targetPoint = { x: aiTarget.x, y: SERVE_NET_Y };
       }
       if (isTutorialNoFault) {
-        targetPoint = { x: serveTargetX, y: SERVE_TARGET_Y.bottom };
+        targetPoint = { x: aiTarget.x, y: aiTarget.y };
       }
 
       if (netFault || outFault) {
@@ -1636,7 +1713,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         schedulePlayerMiss(postBounceDuration, { isServe: true });
         }, duration);
       }, 50);
-    }, 600);
+    }, 1600);
     return () => clearTimeout(timeoutId);
   }, [addBounceMarker, gameState.status, getPostBounceDuration, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, playHitSound, playServeFault, resetPoint, schedulePlayerMiss, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback, tutorial]);
 
@@ -1671,7 +1748,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   }, [gameState.status, startGame, tutorial]);
 
   const serveUiStats = getServeStats('player');
-  const serveNetChance = tutorial ? 0 : getServeNetChance(serveUiStats.spin);
+  const serveNetChance = tutorial ? 0 : getServeNetChance(serveUiStats.spin, serveTarget.y);
   const serveSpeedMph = useMemo(() => {
     const servePower = Math.max(0, Math.min(100, serveUiStats.power));
     const minDuration = getPowerDuration('serve', 0);
@@ -1688,9 +1765,22 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         y: serveTarget.y,
         radius: isTutorialOpeningServe
           ? 0
-          : ((100 - Math.min(100, Math.max(0, serveUiStats.control))) / 100) * SERVE_JITTER_MAX,
+          : getServeJitterRadius(serveUiStats.control),
         visible: true,
       }
+    : undefined;
+  const aiServeDebug = isServePending && server === 'opponent'
+    ? (() => {
+        const serveStats = getServeStats('opponent');
+        const aiTarget = aiServeTargetRef.current
+          ?? getAiServeTarget(serveSide, serveStats.control, aiProfile.tendencies.awayBias, serveNumber);
+        return {
+          x: aiTarget.x,
+          y: aiTarget.y,
+          radius: getServeJitterRadius(serveStats.control),
+          visible: true,
+        };
+      })()
     : undefined;
   const aiVolleyDebugTarget = currentAnimDuration > 0 && !ballHasBouncedRef.current
     ? { x: extendShotToY(shotStartPosRef.current, shotEndPosRef.current, AI_VOLLEY_ZONE_Y), y: AI_VOLLEY_ZONE_Y }
@@ -1942,6 +2032,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           aiHitRadiusBH={aiHitRadiusBH}
           surface={surface}
           serveDebug={serveDebug}
+          aiServeDebug={aiServeDebug}
           aiVolleyZoneY={AI_VOLLEY_ZONE_Y}
           aiVolleyTarget={aiVolleyDebugTarget}
           aiRunTarget={aiRunTarget}

@@ -22,6 +22,7 @@ interface CourtProps {
   aiHitRadiusBH: number;
   ballHasBounced: boolean;
   serveDebug?: { x: number; y: number; radius: number; visible: boolean };
+  aiServeDebug?: { x: number; y: number; radius: number; visible: boolean };
   aiVolleyZoneY?: number;
   aiVolleyTarget?: { x: number; y: number };
   aiRunTarget?: { x: number; y: number };
@@ -51,6 +52,7 @@ const Court: React.FC<CourtProps> = ({
   aiHitRadiusBH,
   ballHasBounced,
   serveDebug,
+  aiServeDebug,
   aiVolleyZoneY,
   aiVolleyTarget,
   aiRunTarget,
@@ -121,6 +123,8 @@ const Court: React.FC<CourtProps> = ({
   const aiHitRadiusX = (playableWidth * aiActiveHitRadius) / 100;
   const serveDebugOnCourt = serveDebug ? mapToCourt({ x: serveDebug.x, y: serveDebug.y }) : null;
   const serveDebugRadiusX = serveDebug ? (playableWidth * serveDebug.radius) / 100 : 0;
+  const aiServeDebugOnCourt = aiServeDebug ? mapToCourt({ x: aiServeDebug.x, y: aiServeDebug.y }) : null;
+  const aiServeDebugRadiusX = aiServeDebug ? (playableWidth * aiServeDebug.radius) / 100 : 0;
   const aiVolleyZoneOnCourt = aiVolleyZoneY !== undefined
     ? mapToCourt({ x: PHYSICS.COURT_BOUNDS.MIN_X, y: aiVolleyZoneY })
     : null;
@@ -284,6 +288,19 @@ const Court: React.FC<CourtProps> = ({
             }}
           >
             <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-200 shadow-[0_0_14px_rgba(125,211,252,0.9)]" />
+          </div>
+        )}
+        {aiServeDebug?.visible && aiServeDebugOnCourt && (
+          <div
+            className="absolute pointer-events-none z-10 rounded-full aspect-square border border-rose-200/80 shadow-[0_0_18px_rgba(251,113,133,0.35)]"
+            style={{
+              width: `${aiServeDebugRadiusX * 2}%`,
+              left: `${aiServeDebugOnCourt.x}%`,
+              top: `${aiServeDebugOnCourt.y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-200 shadow-[0_0_14px_rgba(251,113,133,0.9)]" />
           </div>
         )}
 
