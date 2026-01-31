@@ -284,15 +284,15 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'djokovic-serve', player: 'Djokovic', shot: 'serve', stats: { power: 96, spin: 70, control: 102, shape: 65 }, price: 25600, tier: 'legendary', description: 'Consistent' },
   { id: 'zverev-serve', player: 'Zverev', shot: 'serve', stats: { power: 98, spin: 68, control: 92, shape: 60 }, price: 25600, tier: 'legendary', description: 'Big serve with solid accuracy.' },
 
-  { id: 'alcaraz-forehand', player: 'Alcaraz', shot: 'forehand', stats: { power: 90, spin: 92, control: 88, shape: 70 }, price: 25600, tier: 'legendary', description: 'Whippy acceleration with sharp angles.' },
-  { id: 'federer-forehand', player: 'Federer', shot: 'forehand', stats: { power: 85, spin: 80, control: 95, shape: 75 }, price: 25600, tier: 'legendary', description: 'Fluent technique with precise depth.' },
-  { id: 'sinner-forehand', player: 'Sinner', shot: 'forehand', stats: { power: 88, spin: 85, control: 90, shape: 65 }, price: 25600, tier: 'legendary', description: 'Compact yet powerful with depth.' },
+  { id: 'alcaraz-forehand', player: 'Alcaraz', shot: 'forehand', stats: { power: 82, spin: 95, control: 88, shape: 70 }, price: 25600, tier: 'legendary', description: 'Whippy acceleration with sharp angles.' },
+  { id: 'federer-forehand', player: 'Federer', shot: 'forehand', stats: { power: 86, spin: 80, control: 95, shape: 75 }, price: 25600, tier: 'legendary', description: 'Fluent technique with precise depth.' },
+  { id: 'sinner-forehand', player: 'Sinner', shot: 'forehand', stats: { power: 89, spin: 89, control: 90, shape: 65 }, price: 25600, tier: 'legendary', description: 'Compact yet powerful with depth.' },
   { id: 'swiatek-forehand', player: 'Swiatek', shot: 'forehand', stats: { power: 80, spin: 90, control: 92, shape: 70 }, price: 25600, tier: 'legendary', description: 'Heavy topspin with consistent depth.' },
-  { id: 'serena-forehand', player: 'Serena', shot: 'forehand', stats: { power: 95, spin: 80, control: 85, shape: 60 }, price: 25600, tier: 'legendary', description: 'Explosive power with aggressive angles.' },
+  { id: 'serena-forehand', player: 'Serena', shot: 'forehand', stats: { power: 80, spin: 80, control: 85, shape: 60 }, price: 25600, tier: 'legendary', description: 'Explosive power with aggressive angles.' },
 
   { id: 'sinner-backhand', player: 'Sinner', shot: 'backhand', stats: { power: 88, spin: 80, control: 90, shape: 65 }, price: 25600, tier: 'legendary', description: 'Laser backhand with depth control.' },
-  { id: 'medvedev-backhand', player: 'Medvedev', shot: 'backhand', stats: { power: 90, spin: 85, control: 98, shape: 75 }, price: 25600, tier: 'legendary', description: 'Flat laser with deep control.' },
-  { id: 'agassi-backhand', player: 'Agassi', shot: 'backhand', stats: { power: 85, spin: 75, control: 95, shape: 70 }, price: 25600, tier: 'legendary', description: 'Aggressive backhand with sharp angles.' },
+  { id: 'medvedev-backhand', player: 'Medvedev', shot: 'backhand', stats: { power: 85, spin: 80, control: 105, shape: 75 }, price: 25600, tier: 'legendary', description: 'Flat laser with deep control.' },
+  { id: 'agassi-backhand', player: 'Agassi', shot: 'backhand', stats: { power: 86, spin: 75, control: 95, shape: 70 }, price: 25600, tier: 'legendary', description: 'Aggressive backhand with sharp angles.' },
   { id: 'wawrinka-backhand', player: 'Wawrinka', shot: 'backhand', stats: { power: 92, spin: 80, control: 90, shape: 75 }, price: 25600, tier: 'legendary', description: 'Heavy topspin with penetrating depth.' },
 
   { id: 'barty-volley', player: 'Barty', shot: 'volley', stats: { control: 105, accuracy: 120 }, price: 25600, tier: 'legendary', description: 'Calm net game with fine placement.' },
