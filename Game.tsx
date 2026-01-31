@@ -1071,7 +1071,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const aiControl = aiStroke === 'FH' ? aiStats.forehand.control : aiStats.backhand.control;
         const controlFactor = Math.max(0.15, 1 - aiControl / 160);
         const powerFactor = Math.max(0, Math.min(1, (hitSpin + hitSpeed / 20) / 200));
-        const baseMissChance = 0.04 + powerFactor * 0.25;
+        const baseMissChance = 0.05 + powerFactor * 0.45;
         const errorModifier = Math.max(0.5, aiProfile.tendencies.errorModifier || 1);
         const missChance = Math.max(0.01, baseMissChance * controlFactor * errorModifier);
         const forcePerfectAi = Boolean(tutorial);

@@ -75,18 +75,21 @@ const applyAiProfileModifiers = (stats: PlayerStats, profileId?: string): Player
       next.forehand.spin = scale(next.forehand.spin, 1.05);
       next.backhand.power = scale(next.backhand.power, 1.05);
       next.backhand.spin = scale(next.backhand.spin, 1.05);
-      next.athleticism.speed = scale(next.athleticism.speed, 1.1);
-      next.volley.control = scale(next.volley.control, 0.9);
-      next.volley.accuracy = scale(next.volley.accuracy, 0.9);
+      next.athleticism.speed = scale(next.athleticism.speed, 1.2);
+      next.volley.control = scale(next.volley.control, 0.6);
+      next.volley.accuracy = scale(next.volley.accuracy, 0.6);
+      next.serveFirst.power = scale(next.serveFirst.power, 0.9);
+      next.serveSecond.power = scale(next.serveSecond.power, 0.9);
       break;
     }
     case 'aggressive-shotmaker': {
-      next.forehand.power = scale(next.forehand.power, 1.15);
-      next.forehand.spin = scale(next.forehand.spin, 1.15);
-      next.backhand.power = scale(next.backhand.power, 1.15);
-      next.backhand.spin = scale(next.backhand.spin, 1.15);
-      next.forehand.control = scale(next.forehand.control, 0.9);
-      next.backhand.control = scale(next.backhand.control, 0.9);
+      next.forehand.power = scale(next.forehand.power, 1.1);
+      next.forehand.spin = scale(next.forehand.spin, 1.1);
+      next.backhand.power = scale(next.backhand.power, 1.05);
+      next.backhand.spin = scale(next.backhand.spin, 1.05);
+      next.forehand.control = scale(next.forehand.control, 0.5);
+      next.backhand.control = scale(next.backhand.control, 0.5);
+
       break;
     }
     case 'serve-volleyer': {
@@ -95,10 +98,10 @@ const applyAiProfileModifiers = (stats: PlayerStats, profileId?: string): Player
       next.volley.accuracy = scale(next.volley.accuracy, 1.2);
       next.serveFirst.power = scale(next.serveFirst.power, 1.1);
       next.serveSecond.power = scale(next.serveSecond.power, 1.1);
-      next.forehand.power = scale(next.forehand.power, 0.9);
-      next.forehand.spin = scale(next.forehand.spin, 0.9);
-      next.backhand.power = scale(next.backhand.power, 0.9);
-      next.backhand.spin = scale(next.backhand.spin, 0.9);
+      next.forehand.power = scale(next.forehand.power, 0.8);
+      next.forehand.spin = scale(next.forehand.spin, 0.8);
+      next.backhand.power = scale(next.backhand.power, 0.8);
+      next.backhand.spin = scale(next.backhand.spin, 0.8);
       break;
     }
     case 'counterpuncher': {
@@ -110,10 +113,12 @@ const applyAiProfileModifiers = (stats: PlayerStats, profileId?: string): Player
       break;
     }
     case 'power-server': {
-      next.serveFirst.power = scale(next.serveFirst.power, 1.2);
-      next.serveSecond.power = scale(next.serveSecond.power, 1.2);
-      next.athleticism.speed = scale(next.athleticism.speed, 0.9);
-      next.athleticism.stamina = scale(next.athleticism.stamina, 0.9);
+      next.serveFirst.power = scale(next.serveFirst.power, 1.15);
+      next.serveSecond.power = scale(next.serveSecond.power, 1.15);
+      next.forehand.control = scale(next.forehand.control, 0.85);
+      next.backhand.control = scale(next.backhand.control, 0.85);
+      next.athleticism.speed = scale(next.athleticism.speed, 0.6);
+      next.athleticism.stamina = scale(next.athleticism.stamina, 0.6);
       break;
     }
     case 'all-court-artist':

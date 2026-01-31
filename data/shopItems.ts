@@ -204,7 +204,6 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'shapovalov-forehand', player: 'Shapovalov', shot: 'forehand', stats: { power: 76, spin: 64, control: 70, shape: 58 }, price: 240, tier: 'pro', description: 'Shapovalov forehand tuned for pro competition.' },
   { id: 'shapovalov-volley', player: 'Shapovalov', shot: 'volley', stats: { control: 78, accuracy: 74 }, price: 240, tier: 'pro', description: 'Shapovalov volley tuned for pro competition.' },
   { id: 'shapovalov-athleticism', player: 'Shapovalov', shot: 'athleticism', stats: { speed: 74, stamina: 76 }, price: 240, tier: 'pro', description: 'Shapovalov athleticism tuned for pro competition.' },
-  { id: 'shelton-serve', player: 'Shelton', shot: 'serve', stats: { power: 78, spin: 58, control: 70, shape: 52 }, price: 240, tier: 'pro', description: 'Shelton serve tuned for pro competition.' },
   { id: 'shelton-forehand', player: 'Shelton', shot: 'forehand', stats: { power: 76, spin: 64, control: 70, shape: 58 }, price: 240, tier: 'pro', description: 'Shelton forehand tuned for pro competition.' },
   { id: 'shelton-backhand', player: 'Shelton', shot: 'backhand', stats: { power: 72, spin: 62, control: 70, shape: 56 }, price: 240, tier: 'pro', description: 'Shelton backhand tuned for pro competition.' },
   { id: 'shelton-volley', player: 'Shelton', shot: 'volley', stats: { control: 78, accuracy: 74 }, price: 240, tier: 'pro', description: 'Shelton volley tuned for pro competition.' },
@@ -244,6 +243,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'dimitrov-backhand', player: 'Dimitrov', shot: 'backhand', stats: { power: 80, spin: 80, control: 70, shape: 56 }, price: 2560, tier: 'elite', description: 'Dimitrov backhand tuned for pro competition.' },
   { id: 'dimitrov-volley', player: 'Dimitrov', shot: 'volley', stats: { control: 89, accuracy: 74 }, price: 2560, tier: 'elite', description: 'Dimitrov volley tuned for pro competition.' },
 
+  { id: 'shelton-serve', player: 'Shelton', shot: 'serve', stats: { power: 90, spin: 60, control: 70, shape: 52 }, price: 240, tier: 'elite', description: 'Shelton serve tuned for pro competition.' },
   { id: 'swiatek-serve', player: 'Swiatek', shot: 'serve', stats: { power: 90, spin: 70, control: 86, shape: 64 }, price: 2560, tier: 'elite', description: 'Swiatek serve tuned for elite competition.' },
   { id: 'swiatek-backhand', player: 'Swiatek', shot: 'backhand', stats: { power: 86, spin: 78, control: 86, shape: 68 }, price: 2560, tier: 'elite', description: 'Swiatek backhand tuned for elite competition.' },
   { id: 'swiatek-volley', player: 'Swiatek', shot: 'volley', stats: { control: 98, accuracy: 90 }, price: 2560, tier: 'elite', description: 'Swiatek volley tuned for elite competition.' },
