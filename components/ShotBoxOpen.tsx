@@ -5,9 +5,10 @@ type ShotBoxOpenProps = {
   item: ShopItem;
   alreadyOwned: boolean;
   onBack: () => void;
+  onEquip?: (item: ShopItem) => void;
 };
 
-const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack }) => {
+const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack, onEquip }) => {
   const [opened, setOpened] = useState(false);
   const handleOpen = () => {
     if (opened) return;
@@ -140,8 +141,17 @@ const ShotBoxOpen: React.FC<ShotBoxOpenProps> = ({ item, alreadyOwned, onBack })
           </div>
 
           {opened && (
-            <div className="mt-6 text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
-              Added to collection.
+            <div className="mt-6 flex flex-col items-center gap-3 text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
+              <div>Added to collection.</div>
+              {!alreadyOwned && onEquip && (
+                <button
+                  type="button"
+                  onClick={() => onEquip(item)}
+                  className="px-5 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-emerald-300/70 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+                >
+                  Equip Now
+                </button>
+              )}
             </div>
           )}
         </div>

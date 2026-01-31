@@ -2,9 +2,10 @@ import React from 'react';
 
 type TutorialIntroProps = {
   onStart: () => void;
+  onSkip?: () => void;
 };
 
-const TutorialIntro: React.FC<TutorialIntroProps> = ({ onStart }) => (
+const TutorialIntro: React.FC<TutorialIntroProps> = ({ onStart, onSkip }) => (
   <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-hidden">
     <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
     <div className="relative z-10 h-full flex items-center justify-center px-8">
@@ -22,13 +23,24 @@ const TutorialIntro: React.FC<TutorialIntroProps> = ({ onStart }) => (
         <p className="mt-4 text-xs uppercase tracking-widest text-slate-400">
           Let&apos;s learn the basics.
         </p>
-        <button
-          type="button"
-          onClick={onStart}
-          className="mt-8 px-8 py-3 rounded-full text-[11px] font-orbitron uppercase tracking-widest border border-emerald-300/70 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
-        >
-          Start Training
-        </button>
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={onStart}
+            className="px-8 py-3 rounded-full text-[11px] font-orbitron uppercase tracking-widest border border-emerald-300/70 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+          >
+            Start Training
+          </button>
+          {onSkip && (
+            <button
+              type="button"
+              onClick={onSkip}
+              className="px-6 py-3 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 text-white/70 bg-white/5 hover:bg-white/10 transition-all"
+            >
+              Skip Tutorial
+            </button>
+          )}
+        </div>
       </div>
     </div>
   </div>

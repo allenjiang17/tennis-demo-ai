@@ -68,6 +68,12 @@ type GameProps = {
     targets?: Array<{ id: string; x: number; y: number; radius: number }>;
     targetMode?: 'ground' | 'volley' | 'dropshot';
     dropshotZone?: { xMin: number; xMax: number; yMin: number; yMax: number };
+    introPopup?: {
+      visible: boolean;
+      onContinue: () => void;
+      onSkip?: () => void;
+    };
+    onSkip?: () => void;
     onPlayerServe?: () => void;
     onPlayerHit?: (context: { isVolley: boolean }) => void;
     onTargetHit?: (id: string, isVolley: boolean) => void;
@@ -197,6 +203,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     if (gameState.status !== GameStatus.GAME_OVER || matchReportedRef.current) return;
     matchReportedRef.current = true;
     const winner = gameState.player.score >= gameState.opponent.score ? 'player' : 'opponent';
+    console.log('[Game] onMatchEnd firing', {
+      winner,
+      playerScore: gameState.player.score,
+      opponentScore: gameState.opponent.score,
+    });
     onMatchEnd(winner);
   }, [gameState.opponent.score, gameState.player.score, gameState.status, onMatchEnd]);
 
@@ -522,6 +533,23 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
   const playServeFault = useCallback((start: { x: number; y: number }, target: { x: number; y: number }, duration: number, isPlayer: boolean) => {
     isBallLiveRef.current = false;
+    if (isPlayer) {
+      setLastStroke(target.x < start.x ? 'BH' : 'FH');
+      setIsSwinging(true);
+      setIsVolleySwinging(false);
+      setTimeout(() => {
+        setIsSwinging(false);
+        setIsVolleySwinging(false);
+      }, 250);
+    } else {
+      setAiLastStroke(target.x < start.x ? 'BH' : 'FH');
+      setIsAiSwinging(true);
+      setIsAiVolleySwinging(false);
+      setTimeout(() => {
+        setIsAiSwinging(false);
+        setIsAiVolleySwinging(false);
+      }, 250);
+    }
     playHitSound(isPlayer);
     setCurrentAnimDuration(0);
     setBallTimingFunction(PRE_BOUNCE_TIMING);
@@ -1394,16 +1422,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const effectiveSide = server === 'opponent' ? (serveSide === 'deuce' ? 'ad' : 'deuce') : serveSide;
     const isDeuce = effectiveSide === 'deuce';
     if (server === 'player') {
-      const serverX = isDeuce ? 70 : 30;
-      const receiverX = isDeuce ? 30 : 70;
+      const serverX = isDeuce ? 80 : 20;
+      const receiverX = isDeuce ? 20 : 80;
       setPlayerPos(prev => ({ ...prev, x: serverX, y: 186 }));
       setAiPos(prev => ({ ...prev, x: receiverX, y: -6 }));
       currentAiPosRef.current = { ...currentAiPosRef.current, x: receiverX, y: -6 };
       aiTargetXRef.current = receiverX;
       aiTargetYRef.current = -6;
     } else {
-      const serverX = isDeuce ? 70 : 30;
-      const receiverX = isDeuce ? 30 : 70;
+      const serverX = isDeuce ? 80 : 20;
+      const receiverX = isDeuce ? 20 : 80;
       setAiPos(prev => ({ ...prev, x: serverX, y: -6 }));
       currentAiPosRef.current = { ...currentAiPosRef.current, x: serverX, y: -6 };
       setPlayerPos(prev => ({ ...prev, x: receiverX, y: 186 }));
@@ -1842,7 +1870,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           <div className="absolute top-24 right-6 z-40 w-80 space-y-4 pointer-events-none">
             <div className="rounded-3xl border border-white/20 bg-black/60 px-5 py-4 shadow-[0_0_24px_rgba(15,23,42,0.8)] animate-tutorial-pop">
               <div className="text-[9px] font-orbitron uppercase tracking-widest text-slate-300">
-                Tutorial Tip
+                Serve the ball
               </div>
               <div className="mt-2 text-[11px] uppercase tracking-widest text-slate-100">
                 {tutorial.instructionPrimary}
@@ -1858,6 +1886,49 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {tutorial?.introPopup?.visible && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="max-w-md rounded-3xl border border-white/20 bg-black/70 px-8 py-6 text-center shadow-[0_0_28px_rgba(15,23,42,0.85)]">
+              <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-300">
+                Tutorial
+              </div>
+              <div className="mt-3 text-2xl font-orbitron uppercase tracking-widest text-white">
+                Let&apos;s learn how to play!
+              </div>
+              <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={tutorial.introPopup.onContinue}
+                  className="px-6 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-emerald-300/70 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+                >
+                  Continue
+                </button>
+                {tutorial.introPopup.onSkip && (
+                  <button
+                    type="button"
+                    onClick={tutorial.introPopup.onSkip}
+                    className="px-5 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 text-white/70 bg-white/5 hover:bg-white/10 transition-all"
+                  >
+                    Skip
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tutorial?.onSkip && (
+          <div className="absolute bottom-6 left-6 z-40 pointer-events-auto">
+            <button
+              type="button"
+              onClick={tutorial.onSkip}
+              className="px-4 py-2 rounded-full text-[9px] font-orbitron uppercase tracking-widest border border-white/20 text-white/70 bg-white/5 hover:bg-white/10 transition-all"
+            >
+              Skip Tutorial
+            </button>
           </div>
         )}
         

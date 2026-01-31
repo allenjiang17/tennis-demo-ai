@@ -5,7 +5,6 @@ import OpponentSelect from './components/OpponentSelect';
 import Menu from './components/Menu';
 import Rankings from './components/Rankings';
 import Settings from './components/Settings';
-import TutorialIntro from './components/TutorialIntro';
 import TutorialComplete from './components/TutorialComplete';
 import ShotShop from './components/ShotShop';
 import ShotBoxOpen from './components/ShotBoxOpen';
@@ -550,15 +549,14 @@ const App: React.FC = () => {
   const [tutorialCompleted, setTutorialCompleted] = useState(() =>
     loadFromStorage<boolean>(STORAGE_KEYS.tutorialComplete, false)
   );
-  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings' | 'settings' | 'career' | 'block-summary' | 'tutorial'>(() => (
-    loadFromStorage<boolean>(STORAGE_KEYS.tutorialComplete, false) ? 'menu' : 'tutorial'
-  ));
-  const [tutorialStage, setTutorialStage] = useState<'intro' | 'game' | 'loadout' | 'complete'>('intro');
+  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings' | 'settings' | 'career' | 'block-summary' | 'tutorial'>('menu');
+  const [tutorialStage, setTutorialStage] = useState<'game' | 'loadout' | 'complete'>('game');
   const [tutorialServeDone, setTutorialServeDone] = useState(false);
   const [tutorialHitCount, setTutorialHitCount] = useState(0);
   const [tutorialPhase, setTutorialPhase] = useState<'ground' | 'volley' | 'dropshot'>('ground');
   const [tutorialTargetsHit, setTutorialTargetsHit] = useState<Set<string>>(new Set());
-  const [showCareerCallout, setShowCareerCallout] = useState(false);
+  const [tutorialWelcomeVisible, setTutorialWelcomeVisible] = useState(false);
+  const [showShotShopCallout, setShowShotShopCallout] = useState(false);
   const [wallet, setWallet] = useState(() => loadFromStorage<number>(STORAGE_KEYS.wallet, STARTING_CREDITS));
   const [matchesPlayed, setMatchesPlayed] = useState(() => loadFromStorage<number>(STORAGE_KEYS.matchesPlayed, 0));
   const [shopStockCycle, setShopStockCycle] = useState(() => loadFromStorage<number>(STORAGE_KEYS.shopStockCycle, 0));
@@ -1209,19 +1207,20 @@ const App: React.FC = () => {
 
   const beginTutorial = useCallback(() => {
     setTutorialCompleted(false);
-    setTutorialStage('intro');
+    setTutorialStage('game');
     setTutorialServeDone(false);
     setTutorialHitCount(0);
     setTutorialPhase('ground');
     setTutorialTargetsHit(new Set());
-    setShowCareerCallout(false);
+    setTutorialWelcomeVisible(true);
+    setShowShotShopCallout(false);
     setScreen('tutorial');
   }, []);
 
   const finishTutorial = useCallback(() => {
     setTutorialCompleted(true);
-    setShowCareerCallout(true);
-    setScreen('menu');
+    setShowShotShopCallout(true);
+    setScreen('career');
   }, []);
 
   const handleTutorialTargetHit = useCallback((id: string, isVolley: boolean) => {
@@ -1270,14 +1269,6 @@ const App: React.FC = () => {
   }, [tutorialAiLoadout, tutorialAiProfile?.id]);
 
   if (screen === 'tutorial') {
-    if (tutorialStage === 'intro') {
-      return (
-        <TutorialIntro
-          onStart={() => setTutorialStage('game')}
-        />
-      );
-    }
-
     if (tutorialStage === 'game') {
       const showTimingTip = tutorialPhase === 'ground' && tutorialHitCount >= 4;
       const showVolleyTip = tutorialPhase === 'volley';
@@ -1323,7 +1314,18 @@ const App: React.FC = () => {
           playerName={playerName}
           tournamentName="Practice Court"
           tournamentRound="Tutorial Rally"
+          onExit={() => {
+            setTutorialCompleted(true);
+            setShowShotShopCallout(true);
+            setScreen('menu');
+          }}
           tutorial={{
+            introPopup: {
+              visible: tutorialWelcomeVisible,
+              onContinue: () => setTutorialWelcomeVisible(false),
+              onSkip: finishTutorial,
+            },
+            onSkip: finishTutorial,
             instructionPrimary: primaryInstruction,
             instructionSecondary: timingInstruction,
             targets: showVolleyTip || showTimingTip ? remainingTutorialTargets : undefined,
@@ -1437,6 +1439,14 @@ const App: React.FC = () => {
           const activeTournamentBlock = tournamentState.block;
           const finalRoundId = tournamentState.rounds[tournamentState.rounds.length - 1]?.[0]?.id;
           const isChampion = winner === 'player' && finalRoundId === pendingTournamentMatchId;
+          console.log('[App] onMatchEnd received', {
+            winner,
+            pendingTournamentMatchId,
+            finalRoundId,
+            isChampion,
+            tournamentId: tournamentState.id,
+            tournamentStatus: tournamentState.status,
+          });
           let resultToShow: TournamentResultState | null = null;
           let completedState: TournamentState | null = null;
           setTournamentState(prev => {
@@ -1465,6 +1475,11 @@ const App: React.FC = () => {
               simulateTournamentToEnd(updated, match.round);
             }
             if (updated.rounds[3][0].winnerId === PLAYER_ID) updated.status = 'champion';
+            console.log('[App] tournament status update', {
+              updatedStatus: updated.status,
+              winnerId: updated.rounds[3][0].winnerId,
+              tournamentId: updated.id,
+            });
             const championBonus = 0;
             if (updated.status !== 'active') {
               const addedPrize = winner === 'player' ? (updated.prizes[match.round - 1] ?? 0) : 0;
@@ -1714,6 +1729,8 @@ const App: React.FC = () => {
         onBuyBox={handleBuyBox}
         onBack={() => setScreen('menu')}
         onPlayerPage={() => setScreen('player')}
+        tutorialCallout={showShotShopCallout}
+        onDismissTutorialCallout={() => setShowShotShopCallout(false)}
       />
     );
   }
@@ -1723,6 +1740,13 @@ const App: React.FC = () => {
       <ShotBoxOpen
         item={pendingBox.item}
         alreadyOwned={pendingBox.alreadyOwned}
+        onEquip={(item) => {
+          if (!ownedIds.has(item.id)) return;
+          const slot = item.shot as keyof Loadout;
+          setLoadout(prev => ({ ...prev, [slot]: item.id }));
+          setPendingBox(null);
+          setScreen('player');
+        }}
         onBack={() => {
           setPendingBox(null);
           setScreen('shot-shop');
@@ -1738,17 +1762,18 @@ const App: React.FC = () => {
       onChallenge={() => setScreen('opponent')}
       onTournaments={() => setScreen('tournaments')}
       onCareer={() => {
+        if (!tutorialCompleted) {
+          beginTutorial();
+          return;
+        }
         if (tournamentState && tournamentOrigin === 'career' && tournamentState.status === 'active') {
           setScreen('tournaments');
         } else {
           setScreen('career');
         }
-        setShowCareerCallout(false);
       }}
       onRankings={() => setScreen('rankings')}
       onSettings={() => setScreen('settings')}
-      careerCallout={showCareerCallout ? 'Start your career now to play tournaments, earn credits, and win ranking points.' : undefined}
-      onDismissCareerCallout={() => setShowCareerCallout(false)}
     />
   );
 };

@@ -12,6 +12,8 @@ type ShotShopProps = {
   onBuyBox: (shot: ShotType, tier: 'starter' | 'standard' | 'premium') => void;
   onBack: () => void;
   onPlayerPage: () => void;
+  tutorialCallout?: boolean;
+  onDismissTutorialCallout?: () => void;
 };
 
 const shotLabels: Record<ShotType, string> = {
@@ -61,6 +63,8 @@ const ShotShop: React.FC<ShotShopProps> = ({
   onBuyBox,
   onBack,
   onPlayerPage,
+  tutorialCallout,
+  onDismissTutorialCallout,
 }) => {
   return (
   <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
@@ -96,6 +100,30 @@ const ShotShop: React.FC<ShotShopProps> = ({
           </div>
         </div>
       </div>
+
+      {tutorialCallout && (
+        <div className="mt-6 rounded-2xl border border-white/20 bg-black/60 px-5 py-4 shadow-[0_0_24px_rgba(15,23,42,0.8)]">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-300">
+                Tutorial Tip
+              </div>
+              <div className="mt-2 text-[11px] uppercase tracking-widest text-slate-100">
+                You can buy a mystery shot card or select from the daily shop stock to improve your player! 
+                Mystery cards offer a chance at <span className="font-bold">high-tier</span> shots.
+                Collect the ultra rare <span className="font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(253,224,71,0.9)]">unique</span> cards which have rare and powerful perks!
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onDismissTutorialCallout}
+              className="h-7 w-7 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-white/20 text-white/70 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 px-6 py-5">
         <div className="flex items-center justify-between">
