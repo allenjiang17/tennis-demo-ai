@@ -243,6 +243,7 @@ const STORAGE_KEYS = {
   careerBlockResolved: 'tennis.careerBlockResolved',
   aiDifficulty: 'tennis.aiDifficulty',
   tutorialComplete: 'tennis.tutorialComplete',
+  accessGranted: 'tennis.accessGranted',
 } as const;
 
 const loadFromStorage = <T,>(key: string, fallback: T): T => {
@@ -546,6 +547,11 @@ const createInitialPlayers = (): PlayerProfile[] => {
 };
 
 const App: React.FC = () => {
+  const [accessGranted, setAccessGranted] = useState(() =>
+    loadFromStorage<boolean>(STORAGE_KEYS.accessGranted, false)
+  );
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [tutorialCompleted, setTutorialCompleted] = useState(() =>
     loadFromStorage<boolean>(STORAGE_KEYS.tutorialComplete, false)
   );
@@ -637,7 +643,8 @@ const App: React.FC = () => {
     window.localStorage.setItem(STORAGE_KEYS.careerBlockResolved, JSON.stringify(careerBlockResolved));
     window.localStorage.setItem(STORAGE_KEYS.aiDifficulty, JSON.stringify(aiDifficultySetting));
     window.localStorage.setItem(STORAGE_KEYS.tutorialComplete, JSON.stringify(tutorialCompleted));
-  }, [aiDifficultySetting, careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, tutorialCompleted, wallet]);
+    window.localStorage.setItem(STORAGE_KEYS.accessGranted, JSON.stringify(accessGranted));
+  }, [accessGranted, aiDifficultySetting, careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, tutorialCompleted, wallet]);
   const rankedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
@@ -1267,6 +1274,54 @@ const App: React.FC = () => {
       athleticism: { ...base.athleticism, speed: 100, stamina: 100 },
     };
   }, [tutorialAiLoadout, tutorialAiProfile?.id]);
+
+  if (!accessGranted) {
+    return (
+      <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
+        <div className="relative z-10 h-full flex items-center justify-center px-8">
+          <div className="max-w-md w-full rounded-3xl border border-white/20 bg-black/70 px-8 py-6 text-center shadow-[0_0_28px_rgba(15,23,42,0.85)]">
+            <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-300">
+              Access Required
+            </div>
+            <div className="mt-3 text-2xl font-orbitron uppercase tracking-widest text-white">
+              Enter Password
+            </div>
+            <input
+              value={passwordInput}
+              onChange={(event) => {
+                setPasswordInput(event.target.value);
+                setPasswordError('');
+              }}
+              type="password"
+              className="mt-5 w-full rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-orbitron uppercase tracking-widest text-white/90 placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/60"
+              placeholder="Password"
+            />
+            {passwordError && (
+              <div className="mt-3 text-[10px] uppercase tracking-widest text-rose-300">
+                {passwordError}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (passwordInput.trim().toLowerCase() === 'vibecode') {
+                  setAccessGranted(true);
+                  setPasswordInput('');
+                  setPasswordError('');
+                  return;
+                }
+                setPasswordError('Incorrect password');
+              }}
+              className="mt-6 px-6 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-emerald-300/70 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+            >
+              Unlock
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (screen === 'tutorial') {
     if (tutorialStage === 'game') {
