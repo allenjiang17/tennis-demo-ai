@@ -16,6 +16,12 @@ type ShopProps = {
   onPlayerNameChange?: (name: string) => void;
   rankingPoints?: number;
   rankingRank?: number;
+  tutorialOverlay?: {
+    title: string;
+    body: string;
+    ctaLabel?: string;
+    onContinue?: () => void;
+  };
 };
 
 const typeLabel: Record<ShotType, string> = {
@@ -97,6 +103,7 @@ const Shop: React.FC<ShopProps> = ({
   onPlayerNameChange,
   rankingPoints,
   rankingRank,
+  tutorialOverlay,
 }) => {
   const stats = buildStats(items, loadout);
   const [showPortraits, setShowPortraits] = useState(false);
@@ -111,7 +118,7 @@ const Shop: React.FC<ShopProps> = ({
   };
 
   return (
-    <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
+    <div className="relative h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
       <style>{`
         @keyframes subtleGlow {
@@ -389,6 +396,31 @@ const Shop: React.FC<ShopProps> = ({
             ))}
         </div>
       </div>
+
+      {tutorialOverlay && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="max-w-xl rounded-3xl border border-emerald-300/40 bg-emerald-500/10 px-8 py-6 text-center shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+            <div className="text-[9px] font-orbitron uppercase tracking-widest text-emerald-200/80">
+              Tutorial
+            </div>
+            <div className="mt-3 text-2xl font-orbitron uppercase tracking-widest text-white">
+              {tutorialOverlay.title}
+            </div>
+            <div className="mt-4 text-[11px] uppercase tracking-widest text-emerald-100/80">
+              {tutorialOverlay.body}
+            </div>
+            {tutorialOverlay.onContinue && (
+              <button
+                type="button"
+                onClick={tutorialOverlay.onContinue}
+                className="mt-6 px-6 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-emerald-300/60 text-emerald-200 bg-emerald-500/20 hover:bg-emerald-500/30 transition-all"
+              >
+                {tutorialOverlay.ctaLabel ?? 'Continue'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

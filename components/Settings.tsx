@@ -4,9 +4,10 @@ type SettingsProps = {
   aiDifficulty: 'easy' | 'medium' | 'hard';
   onAiDifficultyChange: (value: 'easy' | 'medium' | 'hard') => void;
   onBack: () => void;
+  onViewTutorial: () => void;
 };
 
-const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange, onBack }) => {
+const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange, onBack, onViewTutorial }) => {
   const handleReset = () => {
     Object.keys(window.localStorage)
       .filter(key => key.startsWith('tennis.'))
@@ -72,6 +73,22 @@ const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange,
           className="mt-4 px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-rose-300/60 text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 transition-all"
         >
           Reset Progress
+        </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
+        <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
+          Tutorial
+        </div>
+        <div className="mt-3 text-[10px] uppercase tracking-widest text-slate-500">
+          Replay the onboarding tutorial and practice the basics.
+        </div>
+        <button
+          type="button"
+          onClick={onViewTutorial}
+          className="mt-4 px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border border-emerald-300/60 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+        >
+          View Tutorial
         </button>
       </div>
     </div>

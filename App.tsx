@@ -5,6 +5,8 @@ import OpponentSelect from './components/OpponentSelect';
 import Menu from './components/Menu';
 import Rankings from './components/Rankings';
 import Settings from './components/Settings';
+import TutorialIntro from './components/TutorialIntro';
+import TutorialComplete from './components/TutorialComplete';
 import ShotShop from './components/ShotShop';
 import ShotBoxOpen from './components/ShotBoxOpen';
 import Tournaments from './components/Tournaments';
@@ -241,6 +243,7 @@ const STORAGE_KEYS = {
   careerBlock: 'tennis.careerBlock',
   careerBlockResolved: 'tennis.careerBlockResolved',
   aiDifficulty: 'tennis.aiDifficulty',
+  tutorialComplete: 'tennis.tutorialComplete',
 } as const;
 
 const loadFromStorage = <T,>(key: string, fallback: T): T => {
@@ -544,7 +547,18 @@ const createInitialPlayers = (): PlayerProfile[] => {
 };
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings' | 'settings' | 'career' | 'block-summary'>('menu');
+  const [tutorialCompleted, setTutorialCompleted] = useState(() =>
+    loadFromStorage<boolean>(STORAGE_KEYS.tutorialComplete, false)
+  );
+  const [screen, setScreen] = useState<'menu' | 'player' | 'shot-shop' | 'box-open' | 'opponent' | 'tournaments' | 'tournament-result' | 'game' | 'rankings' | 'settings' | 'career' | 'block-summary' | 'tutorial'>(() => (
+    loadFromStorage<boolean>(STORAGE_KEYS.tutorialComplete, false) ? 'menu' : 'tutorial'
+  ));
+  const [tutorialStage, setTutorialStage] = useState<'intro' | 'game' | 'loadout' | 'complete'>('intro');
+  const [tutorialServeDone, setTutorialServeDone] = useState(false);
+  const [tutorialHitCount, setTutorialHitCount] = useState(0);
+  const [tutorialPhase, setTutorialPhase] = useState<'ground' | 'volley' | 'dropshot'>('ground');
+  const [tutorialTargetsHit, setTutorialTargetsHit] = useState<Set<string>>(new Set());
+  const [showCareerCallout, setShowCareerCallout] = useState(false);
   const [wallet, setWallet] = useState(() => loadFromStorage<number>(STORAGE_KEYS.wallet, STARTING_CREDITS));
   const [matchesPlayed, setMatchesPlayed] = useState(() => loadFromStorage<number>(STORAGE_KEYS.matchesPlayed, 0));
   const [shopStockCycle, setShopStockCycle] = useState(() => loadFromStorage<number>(STORAGE_KEYS.shopStockCycle, 0));
@@ -624,7 +638,8 @@ const App: React.FC = () => {
     window.localStorage.setItem(STORAGE_KEYS.careerBlock, JSON.stringify(careerBlock));
     window.localStorage.setItem(STORAGE_KEYS.careerBlockResolved, JSON.stringify(careerBlockResolved));
     window.localStorage.setItem(STORAGE_KEYS.aiDifficulty, JSON.stringify(aiDifficultySetting));
-  }, [aiDifficultySetting, careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, wallet]);
+    window.localStorage.setItem(STORAGE_KEYS.tutorialComplete, JSON.stringify(tutorialCompleted));
+  }, [aiDifficultySetting, careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, tutorialCompleted, wallet]);
   const rankedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
@@ -1174,6 +1189,196 @@ const App: React.FC = () => {
     [playersById]
   );
 
+  const tutorialTargets = useMemo(() => ([
+    { id: 'crosscourt', x: 20, y: 40, radius: 12 },
+    { id: 'downline', x: 80, y: 40, radius: 12 },
+  ]), []);
+  const volleyTargets = useMemo(() => ([
+    { id: 'volley-cross', x: 25, y: 65, radius: 11 },
+    { id: 'volley-line', x: 75, y: 65, radius: 11 },
+  ]), []);
+  const dropshotZone = useMemo(() => ({
+    xMin: 5,
+    xMax: 95,
+    yMin: 75,
+    yMax: 90,
+  }), []);
+  const remainingTutorialTargets = tutorialPhase === 'volley'
+    ? volleyTargets.filter(target => !tutorialTargetsHit.has(target.id))
+    : tutorialTargets.filter(target => !tutorialTargetsHit.has(target.id));
+
+  const beginTutorial = useCallback(() => {
+    setTutorialCompleted(false);
+    setTutorialStage('intro');
+    setTutorialServeDone(false);
+    setTutorialHitCount(0);
+    setTutorialPhase('ground');
+    setTutorialTargetsHit(new Set());
+    setShowCareerCallout(false);
+    setScreen('tutorial');
+  }, []);
+
+  const finishTutorial = useCallback(() => {
+    setTutorialCompleted(true);
+    setShowCareerCallout(true);
+    setScreen('menu');
+  }, []);
+
+  const handleTutorialTargetHit = useCallback((id: string, isVolley: boolean) => {
+    if (tutorialPhase === 'volley' && !isVolley) return;
+    setTutorialTargetsHit(prev => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      if (tutorialPhase === 'dropshot') {
+        setTutorialStage('complete');
+        return next;
+      }
+      if (tutorialPhase === 'volley') {
+        if (next.size >= volleyTargets.length) {
+          setTutorialPhase('dropshot');
+          return new Set();
+        }
+        return next;
+      }
+      if (next.size >= tutorialTargets.length) {
+        setTutorialPhase('volley');
+        return new Set();
+      }
+      return next;
+    });
+  }, [tutorialPhase, tutorialTargets.length, volleyTargets.length]);
+
+  const tutorialAiProfile = AI_PROFILES[0] ?? selectedAi;
+  const tutorialAiLoadout = useMemo(
+    () => buildTieredLoadout(tutorialAiProfile, 'amateur'),
+    [buildTieredLoadout, tutorialAiProfile]
+  );
+  const tutorialAiStats = useMemo(() => {
+    const base = applyAiDifficultyModifier(
+      applyAiProfileModifiers(buildPlayerStats(SHOP_ITEMS, tutorialAiLoadout), tutorialAiProfile?.id),
+      'easy'
+    );
+    return {
+      serveFirst: { ...base.serveFirst, power: 35, spin: 90, control: 100, shape: 90 },
+      serveSecond: { ...base.serveSecond, power: 35, spin: 90, control: 100, shape: 90 },
+      forehand: { ...base.forehand, power: 35, spin: 90, control: 100, shape: 90 },
+      backhand: { ...base.backhand, power: 35, spin: 90, control: 100, shape: 90 },
+      volley: { ...base.volley, control: 100, accuracy: 100 },
+      athleticism: { ...base.athleticism, speed: 100, stamina: 100 },
+    };
+  }, [tutorialAiLoadout, tutorialAiProfile?.id]);
+
+  if (screen === 'tutorial') {
+    if (tutorialStage === 'intro') {
+      return (
+        <TutorialIntro
+          onStart={() => setTutorialStage('game')}
+        />
+      );
+    }
+
+    if (tutorialStage === 'game') {
+      const showTimingTip = tutorialPhase === 'ground' && tutorialHitCount >= 4;
+      const showVolleyTip = tutorialPhase === 'volley';
+      const showDropshotTip = tutorialPhase === 'dropshot';
+      const primaryInstruction = tutorialServeDone ? (
+        <>
+          <span className="text-emerald-200 font-semibold">Arrow keys</span> to move.
+          <br />
+          <span className="text-emerald-200 font-semibold">Space</span> to hit the ball.
+        </>
+      ) : (
+        <>
+          <span className="text-emerald-200 font-semibold">Left / Right</span> to choose serve placement.
+          <br />
+          <span className="text-emerald-200 font-semibold">Space</span> to serve.
+        </>
+      );
+      const timingInstruction = showDropshotTip
+        ? (
+          <>Press <span className="text-emerald-200 font-semibold">X</span> to execute a dropshot. Aim anywhere in the front court zone.</>
+        )
+        : showVolleyTip
+        ? (
+          <>Hit early before the bounce to volley. Direction is controlled by how early you hit it. Try both volley targets.</>
+        )
+        : showTimingTip
+          ? (
+            <>Early contact sends it cross-court. Late contact goes down the line. Hit both glowing targets.</>
+          )
+          : undefined;
+      return (
+        <Game
+          playerStats={playerStats}
+          aiStats={tutorialAiStats}
+          aiProfile={tutorialAiProfile}
+          playerLoadout={loadout}
+          aiLoadout={tutorialAiLoadout}
+          shopItems={SHOP_ITEMS}
+          opponentName="Practice Partner"
+          playerPortrait={playerPortrait}
+          playerRank={playerRank}
+          surface="hardcourt"
+          playerName={playerName}
+          tournamentName="Practice Court"
+          tournamentRound="Tutorial Rally"
+          tutorial={{
+            instructionPrimary: primaryInstruction,
+            instructionSecondary: timingInstruction,
+            targets: showVolleyTip || showTimingTip ? remainingTutorialTargets : undefined,
+            targetMode: showDropshotTip ? 'dropshot' : showVolleyTip ? 'volley' : 'ground',
+            dropshotZone: showDropshotTip ? dropshotZone : undefined,
+            onPlayerServe: () => setTutorialServeDone(true),
+            onPlayerHit: () => setTutorialHitCount(prev => prev + 1),
+            onTargetHit: handleTutorialTargetHit,
+            disableOpeningServeFaults: true,
+          }}
+        />
+      );
+    }
+
+    if (tutorialStage === 'loadout') {
+      return (
+        <Shop
+          items={SHOP_ITEMS}
+          wallet={wallet}
+          ownedIds={ownedIds}
+          loadout={loadout}
+          onEquip={handleEquip}
+          portraits={PORTRAITS}
+          selectedPortraitId={playerPortraitId}
+          onSelectPortrait={id => {
+            const portrait = PORTRAITS.find(item => item.id === id);
+            updatePlayerProfile(PLAYER_ID, {
+              portraitId: id,
+              gender: portrait?.gender ?? (playerProfile?.gender || 'male'),
+              portraitType: portrait?.name ?? (playerProfile?.portraitType || 'Defensive Baseliner'),
+            });
+          }}
+          playerName={playerName}
+          onPlayerNameChange={name => updatePlayerProfile(PLAYER_ID, { name })}
+          rankingPoints={playerPoints}
+          rankingRank={playerRank}
+          tutorialOverlay={{
+            title: 'Loadouts & Stats',
+            body: 'Every shot has different power, spin, control, and shape. Visit the Shot Shop to collect upgrades.',
+            ctaLabel: 'Continue Tutorial',
+            onContinue: () => setTutorialStage('game'),
+          }}
+        />
+      );
+    }
+
+    if (tutorialStage === 'complete') {
+      return (
+        <TutorialComplete
+          onFinish={finishTutorial}
+        />
+      );
+    }
+  }
+
   if (screen === 'game') {
     return (
       <Game
@@ -1409,6 +1614,7 @@ const App: React.FC = () => {
         onBack={() => setScreen('menu')}
         aiDifficulty={aiDifficultySetting}
         onAiDifficultyChange={setAiDifficultySetting}
+        onViewTutorial={beginTutorial}
       />
     );
   }
@@ -1537,9 +1743,12 @@ const App: React.FC = () => {
         } else {
           setScreen('career');
         }
+        setShowCareerCallout(false);
       }}
       onRankings={() => setScreen('rankings')}
       onSettings={() => setScreen('settings')}
+      careerCallout={showCareerCallout ? 'Start your career now to play tournaments, earn credits, and win ranking points.' : undefined}
+      onDismissCareerCallout={() => setShowCareerCallout(false)}
     />
   );
 };

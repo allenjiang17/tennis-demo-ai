@@ -62,9 +62,20 @@ type GameProps = {
   tournamentRound?: string;
   onExit?: () => void;
   onMatchEnd?: (winner: 'player' | 'opponent') => void;
+  tutorial?: {
+    instructionPrimary?: React.ReactNode;
+    instructionSecondary?: React.ReactNode;
+    targets?: Array<{ id: string; x: number; y: number; radius: number }>;
+    targetMode?: 'ground' | 'volley' | 'dropshot';
+    dropshotZone?: { xMin: number; xMax: number; yMin: number; yMax: number };
+    onPlayerServe?: () => void;
+    onPlayerHit?: (context: { isVolley: boolean }) => void;
+    onTargetHit?: (id: string, isVolley: boolean) => void;
+    disableOpeningServeFaults?: boolean;
+  };
 };
 
-const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, surface, opponentName, playerPortrait, opponentPortrait, playerName, playerRank, opponentRank, tournamentName, tournamentRound, onExit, onMatchEnd }) => {
+const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoadout, aiLoadout, shopItems, surface, opponentName, playerPortrait, opponentPortrait, playerName, playerRank, opponentRank, tournamentName, tournamentRound, onExit, onMatchEnd, tutorial }) => {
   const opponentLabel = opponentName || 'Master AI';
   const playerLabel = playerName?.trim() || 'You';
   const formatRank = (rank?: number) => (typeof rank === 'number' && Number.isFinite(rank) ? `#${rank}` : null);
@@ -133,6 +144,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const serveInProgressRef = useRef(false);
   const initialServerRef = useRef<'player' | 'opponent'>('player');
   const lastFrameTimeRef = useRef<number | null>(null);
+  const lastTutorialTipRef = useRef<{ primary: string; secondary: string }>({ primary: '', secondary: '' });
+  const lastTutorialTipVisibleRef = useRef<{ primary: boolean; secondary: boolean }>({ primary: false, secondary: false });
   const setBallBounced = (value: boolean) => {
     ballHasBouncedRef.current = value;
     setBallHasBounced(value);
@@ -163,6 +176,22 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     }, duration);
   }, []);
 
+  const playTutorialTipSound = useCallback(() => {
+    if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = audioCtxRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(640, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(420, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  }, []);
+
   useEffect(() => {
     if (!onMatchEnd) return;
     if (gameState.status !== GameStatus.GAME_OVER || matchReportedRef.current) return;
@@ -170,6 +199,26 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const winner = gameState.player.score >= gameState.opponent.score ? 'player' : 'opponent';
     onMatchEnd(winner);
   }, [gameState.opponent.score, gameState.player.score, gameState.status, onMatchEnd]);
+
+  useEffect(() => {
+    const primaryVisible = Boolean(tutorial?.instructionPrimary);
+    const secondaryVisible = Boolean(tutorial?.instructionSecondary);
+    const lastVisible = lastTutorialTipVisibleRef.current;
+    const nextPrimary = tutorial?.instructionPrimary ? String(tutorial.instructionPrimary) : '';
+    const nextSecondary = tutorial?.instructionSecondary ? String(tutorial.instructionSecondary) : '';
+    const primaryChanged = primaryVisible && nextPrimary !== lastTutorialTipRef.current.primary;
+    const secondaryChanged = secondaryVisible && nextSecondary !== lastTutorialTipRef.current.secondary;
+    if (
+      (primaryVisible && !lastVisible.primary)
+      || (secondaryVisible && !lastVisible.secondary)
+      || primaryChanged
+      || secondaryChanged
+    ) {
+      playTutorialTipSound();
+    }
+    lastTutorialTipVisibleRef.current = { primary: primaryVisible, secondary: secondaryVisible };
+    lastTutorialTipRef.current = { primary: nextPrimary, secondary: nextSecondary };
+  }, [playTutorialTipSound, tutorial?.instructionPrimary, tutorial?.instructionSecondary]);
 
   const getPlayerSpeed = useCallback(() => {
     const speedStat = Math.max(0, Math.min(100, playerStats.athleticism.speed));
@@ -403,6 +452,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     noise.start();
   }, []);
 
+
   const playNetCordSound = useCallback(() => {
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     const ctx = audioCtxRef.current;
@@ -449,6 +499,26 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setBounceMarkers(prev => prev.map(m => m.id === id ? { ...m, opacity: 0 } : m));
     }, 600);
   }, [playBounceSound]);
+
+  const checkTutorialTargets = useCallback((x: number, y: number, context: { isVolley: boolean; isDropShot: boolean }) => {
+    if (!tutorial?.onTargetHit) return;
+    if (tutorial.targetMode === 'dropshot' && tutorial.dropshotZone && context.isDropShot) {
+      const { xMin, xMax, yMin, yMax } = tutorial.dropshotZone;
+      if (x >= xMin && x <= xMax && y >= yMin && y <= yMax) {
+        tutorial.onTargetHit('dropshot', false);
+      }
+      return;
+    }
+    if (!tutorial.targets || tutorial.targets.length === 0) return;
+    if (tutorial.targetMode === 'volley' && !context.isVolley) return;
+    if (tutorial.targetMode === 'ground' && context.isVolley) return;
+    tutorial.targets.forEach(target => {
+      const distance = Math.hypot(x - target.x, y - target.y);
+      if (distance <= target.radius) {
+        tutorial.onTargetHit(target.id, context.isVolley);
+      }
+    });
+  }, [tutorial]);
 
   const playServeFault = useCallback((start: { x: number; y: number }, target: { x: number; y: number }, duration: number, isPlayer: boolean) => {
     isBallLiveRef.current = false;
@@ -686,7 +756,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       currentAiPosRef.current = resetAiPos;
       setLastStroke(null);
       setGameState(prev => {
-        if (prev.player.score >= 10 || prev.opponent.score >= 10) return { ...prev, status: GameStatus.GAME_OVER };
+        if (!tutorial && (prev.player.score >= 10 || prev.opponent.score >= 10)) {
+          return { ...prev, status: GameStatus.GAME_OVER };
+        }
         return { ...prev, status: GameStatus.PLAYING };
       });
       if (gameState.player.score < 5 && gameState.opponent.score < 5) {
@@ -694,7 +766,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         serveInProgressRef.current = false;
       }
     }, 1000); 
-  }, [aiHomeY, gameState.player.score, gameState.opponent.score, getServerForPoint, getServeSideForPoint, triggerFeedback]);
+  }, [aiHomeY, gameState.player.score, gameState.opponent.score, getServerForPoint, getServeSideForPoint, triggerFeedback, tutorial]);
 
   const schedulePlayerMiss = useCallback((delayMs: number, context?: { isServe?: boolean }) => {
     const check = () => {
@@ -736,12 +808,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const startY = startOverride?.y ?? currentAiPosRef.current.y;
     const timingFactor = Math.max(-1, Math.min(1, (Math.random() * 2 - 1)));
     const playerX = currentPlayerPosRef.current.x;
-    const isDropShot = Math.random() < aiProfile.tendencies.dropShotChance;
+    const isDropShot = tutorial ? false : (Math.random() < aiProfile.tendencies.dropShotChance);
     const baseTargetY = isDropShot ? 108 : 144;
     const awayAnchor = playerX < 50 ? 80 : 20;
     const towardX = playerX + (Math.random() * 12 - 6);
     const awayX = awayAnchor + (Math.random() * 10 - 5);
-    const endX = Math.random() < aiProfile.tendencies.awayBias ? awayX : towardX;
+    const endX = tutorial ? towardX : (Math.random() < aiProfile.tendencies.awayBias ? awayX : towardX);
     const outY = 224;
     const aiStroke = ballHitPosRef.current.x < startX ? 'BH' : 'FH';
     setAiLastStroke(aiStroke);
@@ -842,7 +914,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         schedulePlayerMiss(postBounceDuration);
       }, duration);
     }, 50);
-  }, [addBounceMarker, aiHomeY, aiProfile.tendencies.awayBias, aiProfile.tendencies.dropShotChance, aiStats, extendShotToY, getBouncePoint, getInBoundsTarget, getPostBounceDuration, getPowerDuration, isOutOfBounds, playHitSound, resetPoint, schedulePlayerMiss, triggerFeedback]);
+  }, [addBounceMarker, aiHomeY, aiProfile.tendencies.awayBias, aiProfile.tendencies.dropShotChance, aiStats, extendShotToY, getBouncePoint, getInBoundsTarget, getPostBounceDuration, getPowerDuration, isOutOfBounds, playHitSound, resetPoint, schedulePlayerMiss, triggerFeedback, tutorial]);
 
   const executePlayerShot = useCallback((params: {
     startX: number;
@@ -853,8 +925,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     bounceX: number;
     bounceY: number;
     isServe?: boolean;
+    isVolley?: boolean;
   }) => {
-    const { startX, startY, hitSpeed, hitSpin, isDropShot, bounceX, bounceY, isServe } = params;
+    const { startX, startY, hitSpeed, hitSpin, isDropShot, bounceX, bounceY, isServe, isVolley } = params;
     const aiNow = currentAiPosRef.current;
     const aiVolleyCandidate = aiNow.y >= AI_VOLLEY_ZONE_Y;
     const aiBounceY = bounceY;
@@ -928,6 +1001,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     }, 20);
 
     setTimeout(() => {
+      if (!isOut && !isServe) {
+        checkTutorialTargets(bounceX, aiBounceY, { isVolley: Boolean(isVolley), isDropShot: Boolean(isDropShot) });
+      }
       addBounceMarker(bounceX, aiBounceY);
       setBallBounced(true);
       if (isOut) {
@@ -970,8 +1046,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const baseMissChance = 0.04 + powerFactor * 0.25;
         const errorModifier = Math.max(0.5, aiProfile.tendencies.errorModifier || 1);
         const missChance = Math.max(0.01, baseMissChance * controlFactor * errorModifier);
-        const inRange = aiDistFromBall < aiHitRadius;
-        const rollMiss = Math.random() < missChance;
+        const forcePerfectAi = Boolean(tutorial);
+        const inRange = forcePerfectAi ? true : aiDistFromBall < aiHitRadius;
+        const rollMiss = forcePerfectAi ? false : Math.random() < missChance;
 
         if (isDropShot) {
           if (!inRange) {
@@ -1097,7 +1174,15 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         startAiShot({ x: contactX, y: contactY });
       }, postDuration);
     }, hitSpeed);
-  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, extendShotToY, getAiSpeed, getPostBounceDuration, isOutOfBounds, playNetCordSound, rallyCount, resetPoint, server, startAiShot, triggerFeedback]);
+  }, [addBounceMarker, aiHitRadiusBH, aiHitRadiusFH, aiVolleyRadius, checkTutorialTargets, extendShotToY, getAiSpeed, getPostBounceDuration, isOutOfBounds, playNetCordSound, rallyCount, resetPoint, server, startAiShot, triggerFeedback, tutorial]);
+
+  const isTutorialOpeningServe = Boolean(
+    tutorial?.disableOpeningServeFaults
+    && servePointIndex === 0
+    && server === 'player'
+    && serveNumber === 1
+    && isServePending
+  );
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keysPressed.current.add(e.code);
@@ -1113,12 +1198,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const serveDuration = getPowerDuration('serve', serveStats.power);
         const p = currentPlayerPosRef.current;
         const targetX = getServeTargetX('player', serveSide, serveTarget);
-        const jitter = getServeJitter(serveStats.control);
+        const isTutorialNoFault = Boolean(tutorial);
+        const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
         let targetPoint = { x: targetX + jitter.x, y: SERVE_TARGET_Y.top + jitter.y };
-        const netFault = shouldServeHitNet(serveStats.spin);
-        const outFault = !netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y);
+        const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin);
+        const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y));
         if (netFault) {
           targetPoint = { x: targetX, y: SERVE_NET_Y };
+        }
+        if (isTutorialNoFault) {
+          targetPoint = { x: targetX, y: SERVE_TARGET_Y.top };
         }
 
         if (netFault || outFault) {
@@ -1163,7 +1252,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           bounceX: serveBounce.x,
           bounceY: serveBounce.y,
           isServe: true,
+          isVolley: false,
         });
+        tutorial?.onPlayerServe?.();
         return;
       }
       if (isServePending) return;
@@ -1209,6 +1300,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       isBallLiveRef.current = false;
       setBallBounced(false);
       setRallyCount(prev => prev + 1);
+      tutorial?.onPlayerHit?.({ isVolley });
 
       setIsMeterHolding(true);
       setTimeout(() => {
@@ -1264,9 +1356,10 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         bounceX: bounce.x,
         bounceY: bounce.y,
         isServe: false,
+        isVolley,
       });
     }
-  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, getTimingScale, isBallLiveRef, isServeInBox, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending]);
+  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, getTimingScale, isBallLiveRef, isServeInBox, isTutorialOpeningServe, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending, tutorial]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);
@@ -1324,16 +1417,20 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     if (serveInProgressRef.current) return;
     serveInProgressRef.current = true;
     const timeoutId = setTimeout(() => {
+      const isTutorialNoFault = Boolean(tutorial);
       const serveStats = getServeStats('opponent');
       const serveDuration = getPowerDuration('serve', serveStats.power);
       const start = currentAiPosRef.current;
       const serveTargetX = getServeTargetX('opponent', serveSide, Math.random() < 0.5 ? 'wide' : 'middle');
-      const jitter = getServeJitter(serveStats.control);
+      const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
       let targetPoint = { x: serveTargetX + jitter.x, y: SERVE_TARGET_Y.bottom + jitter.y };
-      const netFault = shouldServeHitNet(serveStats.spin);
-      const outFault = !netFault && !isServeInBox('opponent', serveSide, targetPoint.x, targetPoint.y);
+      const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin);
+      const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('opponent', serveSide, targetPoint.x, targetPoint.y));
       if (netFault) {
         targetPoint = { x: serveTargetX, y: SERVE_NET_Y };
+      }
+      if (isTutorialNoFault) {
+        targetPoint = { x: serveTargetX, y: SERVE_TARGET_Y.bottom };
       }
 
       if (netFault || outFault) {
@@ -1416,7 +1513,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       }, 50);
     }, 600);
     return () => clearTimeout(timeoutId);
-  }, [addBounceMarker, gameState.status, getPostBounceDuration, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, playHitSound, playServeFault, resetPoint, schedulePlayerMiss, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback]);
+  }, [addBounceMarker, gameState.status, getPostBounceDuration, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, playHitSound, playServeFault, resetPoint, schedulePlayerMiss, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback, tutorial]);
 
   const startGame = () => {
     matchReportedRef.current = false;
@@ -1442,13 +1539,21 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     currentAiPosRef.current = resetAiPos;
   };
 
+  useEffect(() => {
+    if (tutorial && gameState.status === GameStatus.START) {
+      startGame();
+    }
+  }, [gameState.status, startGame, tutorial]);
+
   const serveUiStats = getServeStats('player');
-  const serveNetChance = getServeNetChance(serveUiStats.spin);
+  const serveNetChance = tutorial ? 0 : getServeNetChance(serveUiStats.spin);
   const serveDebug = isServePending && server === 'player'
     ? {
         x: getServeTargetX('player', serveSide, serveTarget),
         y: SERVE_TARGET_Y.top,
-        radius: ((100 - Math.min(100, Math.max(0, serveUiStats.control))) / 100) * SERVE_JITTER_MAX,
+        radius: isTutorialOpeningServe
+          ? 0
+          : ((100 - Math.min(100, Math.max(0, serveUiStats.control))) / 100) * SERVE_JITTER_MAX,
         visible: true,
       }
     : undefined;
@@ -1465,63 +1570,69 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center select-none bg-slate-950 text-white overflow-hidden font-inter">
       {/* Header UI */}
-      <div className="absolute top-6 w-full max-w-5xl px-8 flex justify-between items-start z-30 pointer-events-none">
-        <div className="flex flex-col items-start bg-blue-900/40 p-5 rounded-2xl border border-blue-500/30 backdrop-blur-md shadow-2xl">
-          <span className="text-[10px] font-orbitron text-blue-400 tracking-[0.2em] uppercase mb-1">YOU</span>
-          <span className="text-6xl font-orbitron font-bold tracking-tighter">{gameState.player.score}</span>
+      {!tutorial && (
+        <div className="absolute top-6 w-full max-w-5xl px-8 flex justify-between items-start z-30 pointer-events-none">
+          <div className="flex flex-col items-start bg-blue-900/40 p-5 rounded-2xl border border-blue-500/30 backdrop-blur-md shadow-2xl">
+            <span className="text-[10px] font-orbitron text-blue-400 tracking-[0.2em] uppercase mb-1">YOU</span>
+            <span className="text-6xl font-orbitron font-bold tracking-tighter">{gameState.player.score}</span>
+          </div>
+
+          <div className="flex flex-col items-end bg-red-900/40 p-5 rounded-2xl border border-red-500/30 backdrop-blur-md shadow-2xl">
+            <span className="text-[10px] font-orbitron text-red-400 tracking-[0.2em] uppercase mb-1">AI</span>
+            <span className="text-6xl font-orbitron font-bold tracking-tighter">{gameState.opponent.score}</span>
+          </div>
         </div>
+      )}
 
-        <div className="flex flex-col items-end bg-red-900/40 p-5 rounded-2xl border border-red-500/30 backdrop-blur-md shadow-2xl">
-          <span className="text-[10px] font-orbitron text-red-400 tracking-[0.2em] uppercase mb-1">AI</span>
-          <span className="text-6xl font-orbitron font-bold tracking-tighter">{gameState.opponent.score}</span>
+      {!tutorial && (
+        <div className="absolute top-28 left-6 z-30 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setRosterOpen('player')}
+            className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10 transition-all"
+          >
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 border-2 border-white flex items-center justify-center overflow-hidden text-[10px] font-black">
+              {playerPortrait ? (
+                <img src={playerPortrait} alt="Player portrait" className="w-full h-full object-cover" />
+              ) : (
+                'YOU'
+              )}
+            </div>
+            <div className="text-left">
+              <div className="flex items-center gap-2 text-[10px] font-orbitron uppercase tracking-widest text-white">
+                <span>{playerLabel}</span>
+                {playerRankLabel && <span className="text-slate-300">{playerRankLabel}</span>}
+              </div>
+              <div className="text-[9px] uppercase tracking-widest text-slate-400">View loadout</div>
+            </div>
+          </button>
         </div>
-      </div>
+      )}
 
-      <div className="absolute top-28 left-6 z-30 pointer-events-auto">
-        <button
-          type="button"
-          onClick={() => setRosterOpen('player')}
-          className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10 transition-all"
-        >
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 border-2 border-white flex items-center justify-center overflow-hidden text-[10px] font-black">
-            {playerPortrait ? (
-              <img src={playerPortrait} alt="Player portrait" className="w-full h-full object-cover" />
-            ) : (
-              'YOU'
-            )}
-          </div>
-          <div className="text-left">
-            <div className="flex items-center gap-2 text-[10px] font-orbitron uppercase tracking-widest text-white">
-              <span>{playerLabel}</span>
-              {playerRankLabel && <span className="text-slate-300">{playerRankLabel}</span>}
+      {!tutorial && (
+        <div className="absolute top-28 right-6 z-30 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setRosterOpen('opponent')}
+            className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10 transition-all"
+          >
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-2 text-[10px] font-orbitron uppercase tracking-widest text-white">
+                <span>{opponentLabel}</span>
+                {opponentRankLabel && <span className="text-slate-300">{opponentRankLabel}</span>}
+              </div>
+              <div className="text-[9px] uppercase tracking-widest text-slate-400">View loadout</div>
             </div>
-            <div className="text-[9px] uppercase tracking-widest text-slate-400">View loadout</div>
-          </div>
-        </button>
-      </div>
-
-      <div className="absolute top-28 right-6 z-30 pointer-events-auto">
-        <button
-          type="button"
-          onClick={() => setRosterOpen('opponent')}
-          className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10 transition-all"
-        >
-          <div className="text-right">
-            <div className="flex items-center justify-end gap-2 text-[10px] font-orbitron uppercase tracking-widest text-white">
-              <span>{opponentLabel}</span>
-              {opponentRankLabel && <span className="text-slate-300">{opponentRankLabel}</span>}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-900 border-2 border-white flex items-center justify-center overflow-hidden text-[9px] font-black">
+              {opponentPortrait ? (
+                <img src={opponentPortrait} alt={`${opponentLabel} portrait`} className="w-full h-full object-cover" />
+              ) : (
+                'AI'
+              )}
             </div>
-            <div className="text-[9px] uppercase tracking-widest text-slate-400">View loadout</div>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-900 border-2 border-white flex items-center justify-center overflow-hidden text-[9px] font-black">
-            {opponentPortrait ? (
-              <img src={opponentPortrait} alt={`${opponentLabel} portrait`} className="w-full h-full object-cover" />
-            ) : (
-              'AI'
-            )}
-          </div>
-        </button>
-      </div>
+          </button>
+        </div>
+      )}
 
       {onExit && (
         <div className="absolute top-6 right-6 z-40 pointer-events-auto">
@@ -1539,17 +1650,19 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         </div>
       )}
 
-      <div className="absolute bottom-6 left-6 z-30 pointer-events-none">
-        <div className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 backdrop-blur-md">
-          <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">Tournament</div>
-          <div className="mt-1 text-xl font-orbitron font-black uppercase tracking-[0.18em] text-white">
-            {tournamentName || 'Exhibition'}
-          </div>
-          <div className="mt-2 text-[10px] font-orbitron uppercase tracking-widest text-slate-300">
-            {tournamentRound || 'Match'}
+      {!tutorial && (
+        <div className="absolute bottom-6 left-6 z-30 pointer-events-none">
+          <div className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 backdrop-blur-md">
+            <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">Tournament</div>
+            <div className="mt-1 text-xl font-orbitron font-black uppercase tracking-[0.18em] text-white">
+              {tournamentName || 'Exhibition'}
+            </div>
+            <div className="mt-2 text-[10px] font-orbitron uppercase tracking-widest text-slate-300">
+              {tournamentRound || 'Match'}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="absolute bottom-6 right-6 z-30 pointer-events-auto">
         <div className="bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl px-5 py-4">
@@ -1721,7 +1834,32 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           isSwinging={isSwinging}
           isVolleySwinging={isVolleySwinging}
           bounceMarkers={bounceMarkers}
+          tutorialTargets={tutorial?.targets}
+          tutorialZone={tutorial?.dropshotZone}
         />
+
+        {tutorial?.instructionPrimary && (
+          <div className="absolute top-24 right-6 z-40 w-80 space-y-4 pointer-events-none">
+            <div className="rounded-3xl border border-white/20 bg-black/60 px-5 py-4 shadow-[0_0_24px_rgba(15,23,42,0.8)] animate-tutorial-pop">
+              <div className="text-[9px] font-orbitron uppercase tracking-widest text-slate-300">
+                Tutorial Tip
+              </div>
+              <div className="mt-2 text-[11px] uppercase tracking-widest text-slate-100">
+                {tutorial.instructionPrimary}
+              </div>
+            </div>
+            {tutorial.instructionSecondary && (
+              <div className="rounded-3xl border border-white/20 bg-black/60 px-5 py-4 shadow-[0_0_24px_rgba(15,23,42,0.8)] animate-tutorial-pop-delayed">
+                <div className="text-[9px] font-orbitron uppercase tracking-widest text-slate-300">
+                  Timing Tip
+                </div>
+                <div className="mt-2 text-[11px] uppercase tracking-widest text-slate-100">
+                  {tutorial.instructionSecondary}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Shot Meter Slider */}
         {isMeterActive && (
@@ -1734,9 +1872,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
               />
             </div>
             <div className="flex justify-between w-full mt-1 px-1">
-              <span className="text-[7px] font-orbitron text-slate-500">FRONT</span>
+              <span className="text-[7px] font-orbitron text-slate-500">EARLY</span>
               <span className="text-[7px] font-orbitron text-emerald-400 font-bold uppercase">Perfect Zone</span>
-              <span className="text-[7px] font-orbitron text-slate-500">BACK</span>
+              <span className="text-[7px] font-orbitron text-slate-500">LATE</span>
             </div>
           </div>
         )}
@@ -1751,7 +1889,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       </div>
 
       {/* Start Screen */}
-      {gameState.status === GameStatus.START && (
+      {gameState.status === GameStatus.START && !tutorial && (
         <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center p-12 text-center">
           <div className="text-[10px] font-orbitron uppercase tracking-widest text-slate-400">
             {tournamentName || 'Pro Tennis'}
@@ -1840,6 +1978,18 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         @keyframes matchLoad {
           0% { width: 0%; }
           100% { width: 100%; }
+        }
+        @keyframes tutorialPop {
+          0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+          60% { opacity: 1; transform: translateY(0) scale(1.02); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-tutorial-pop {
+          animation: tutorialPop 0.45s ease-out both;
+        }
+        .animate-tutorial-pop-delayed {
+          animation: tutorialPop 0.55s ease-out both;
+          animation-delay: 0.08s;
         }
       `}</style>
     </div>

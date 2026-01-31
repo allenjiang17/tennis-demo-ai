@@ -34,6 +34,8 @@ interface CourtProps {
   isSwinging: boolean;
   isVolleySwinging: boolean;
   bounceMarkers: BounceMarker[];
+  tutorialTargets?: Array<{ id: string; x: number; y: number; radius: number }>;
+  tutorialZone?: { xMin: number; xMax: number; yMin: number; yMax: number };
   surface: CourtSurface;
 }
 
@@ -61,6 +63,8 @@ const Court: React.FC<CourtProps> = ({
   isSwinging,
   isVolleySwinging,
   bounceMarkers,
+  tutorialTargets,
+  tutorialZone,
   surface,
 }) => {
   const getRacketRotation = () => {
@@ -122,6 +126,27 @@ const Court: React.FC<CourtProps> = ({
     : null;
   const aiVolleyTargetOnCourt = aiVolleyTarget ? mapToCourt(aiVolleyTarget) : null;
   const aiRunTargetOnCourt = aiRunTarget ? mapToCourt(aiRunTarget) : null;
+  const tutorialTargetsOnCourt = tutorialTargets?.map(target => {
+    const mapped = mapToCourt({ x: target.x, y: target.y });
+    const radius = (target.radius * playableWidth) / (PHYSICS.COURT_BOUNDS.MAX_X - PHYSICS.COURT_BOUNDS.MIN_X);
+    return {
+      ...target,
+      mapped,
+      radius,
+    };
+  });
+  const tutorialZoneOnCourt = tutorialZone
+    ? (() => {
+        const topLeft = mapToCourt({ x: tutorialZone.xMin, y: tutorialZone.yMin });
+        const bottomRight = mapToCourt({ x: tutorialZone.xMax, y: tutorialZone.yMax });
+        return {
+          left: topLeft.x,
+          top: topLeft.y,
+          width: Math.max(0, bottomRight.x - topLeft.x),
+          height: Math.max(0, bottomRight.y - topLeft.y),
+        };
+      })()
+    : null;
   const surfaceTheme = {
     clay: {
       court: 'bg-orange-900',
@@ -350,6 +375,35 @@ const Court: React.FC<CourtProps> = ({
               }}
             />
           </>
+        )}
+
+        {tutorialTargetsOnCourt && tutorialTargetsOnCourt.length > 0 && (
+          <>
+            {tutorialTargetsOnCourt.map(target => (
+              <div
+                key={target.id}
+                className="absolute pointer-events-none z-20 rounded-full border border-emerald-200/80 shadow-[0_0_18px_rgba(16,185,129,0.6)] bg-emerald-400/20 animate-pulse"
+                style={{
+                  width: `${target.radius * 2}%`,
+                  height: `${target.radius * 2}%`,
+                  left: `${target.mapped.x}%`,
+                  top: `${target.mapped.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
+            ))}
+          </>
+        )}
+        {tutorialZoneOnCourt && (
+          <div
+            className="absolute pointer-events-none z-20 rounded-3xl border border-emerald-200/70 bg-emerald-400/10 shadow-[0_0_24px_rgba(16,185,129,0.4)] animate-pulse"
+            style={{
+              left: `${tutorialZoneOnCourt.left}%`,
+              top: `${tutorialZoneOnCourt.top}%`,
+              width: `${tutorialZoneOnCourt.width}%`,
+              height: `${tutorialZoneOnCourt.height}%`,
+            }}
+          />
         )}
 
         {/* Ball Shadow */}

@@ -61,7 +61,8 @@ const ShotShop: React.FC<ShotShopProps> = ({
   onBuyBox,
   onBack,
   onPlayerPage,
-}) => (
+}) => {
+  return (
   <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
     <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.25),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(14,116,144,0.2),transparent_45%)]" />
     <div className="relative z-10 max-w-5xl mx-auto px-8 py-10 pb-20 min-h-full">
@@ -351,6 +352,7 @@ const ShotShop: React.FC<ShotShopProps> = ({
       }
     `}</style>
   </div>
-);
+  );
+};
 
 export default ShotShop;
