@@ -217,6 +217,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastRenderTimeRef = useRef<number>(0);
   const aiServeTargetRef = useRef<{ x: number; y: number } | null>(null);
+  const aceMasterServeRef = useRef<'player' | 'opponent' | null>(null);
+  const heavyTopspinRef = useRef(false);
   const lastTutorialTipRef = useRef<{ primary: string; secondary: string }>({ primary: '', secondary: '' });
   const lastTutorialTipVisibleRef = useRef<{ primary: boolean; secondary: boolean }>({ primary: false, secondary: false });
   const meterValueRef = useRef(0);
@@ -729,6 +731,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     return serveNumber === 1 ? aiStats.serveFirst : aiStats.serveSecond;
   }, [aiStats.serveFirst, aiStats.serveSecond, playerStats, serveNumber]);
 
+  const getServeItemId = useCallback((owner: 'player' | 'opponent') => {
+    const loadout = owner === 'player' ? playerLoadout : aiLoadout;
+    return serveNumber === 1 ? loadout.serveFirst : loadout.serveSecond;
+  }, [aiLoadout, playerLoadout, serveNumber]);
+
+  const opponentTimeScale = playerLoadout.athleticism === 'special-alcaraz-athleticism' ? 1.25 : 1;
+  const playerTimeScale = aiLoadout.athleticism === 'special-alcaraz-athleticism' ? 1.25 : 1;
+
   const getAiServeTarget = useCallback((side: 'deuce' | 'ad', control: number, awayBias: number, serveNum: number) => {
     const bounds = getServeTargetBounds('opponent', side);
     const centerX = (bounds.minX + bounds.maxX) / 2;
@@ -742,7 +752,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const pickWide = Math.random() < 0.5;
     const targetEdgeX = pickWide ? edgeX : innerEdgeX;
     const baseX = centerX + (targetEdgeX - centerX) * edgeBias;
-    const yT = 0.4 + 0.6 * controlT;
+    const yT = 0.25 + 0.55 * controlT;
     const baseY = bounds.minY + (bounds.maxY - bounds.minY) * yT;
     return clampServeTarget({ x: baseX, y: baseY }, 'opponent', side);
   }, []);
@@ -890,6 +900,8 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
   const resetPoint = useCallback((winner: 'player' | 'opponent', options?: { skipFeedback?: boolean }) => {
     isBallLiveRef.current = false;
+    aceMasterServeRef.current = null;
+    heavyTopspinRef.current = false;
     if (missTimeoutRef.current) clearTimeout(missTimeoutRef.current);
     setRallyCount(0);
     setServePointIndex(prev => {
@@ -940,6 +952,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const schedulePlayerMiss = useCallback((delayMs: number, context?: { isServe?: boolean }) => {
     const check = () => {
       if (!isBallLiveRef.current) return;
+      if (context?.isServe && aceMasterServeRef.current === 'opponent' && rallyCount === 0 && server === 'opponent') {
+        aceMasterServeRef.current = null;
+        triggerFeedback("🔥 ACE MASTER! 🔥", 700);
+        resetPoint('opponent', { skipFeedback: true });
+        return;
+      }
       const player = currentPlayerPosRef.current;
       const ball = ballHitPosRef.current;
       const dx = ball.x - player.x;
@@ -988,10 +1006,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     setAiLastStroke(aiStroke);
     const aiShotStats = aiStats[aiStroke === 'FH' ? 'forehand' : 'backhand'];
     const aiVolleyPower = aiStats.volley.control;
-    const volleyPower = 50 + aiVolleyPower * 0.25;
+    const hasFedererVolleyAi = aiLoadout.volley === 'special-federer-volley';
+    const volleyPower = (50 + aiVolleyPower * 0.25) * (hasFedererVolleyAi ? 2 : 1);
     const hitPower = isVolley ? volleyPower : aiShotStats.power;
     const hitSpin = isVolley ? 0 : aiShotStats.spin;
-    const duration = getPowerDuration(isDropShot ? 'dropshot' : (isVolley ? 'volley' : (aiStroke === 'FH' ? 'forehand' : 'backhand')), hitPower);
+    const duration = getPowerDuration(
+      isDropShot ? 'dropshot' : (isVolley ? 'volley' : (aiStroke === 'FH' ? 'forehand' : 'backhand')),
+      hitPower
+    ) * opponentTimeScale;
     const outDuration = duration;
 
     setCurrentAnimDuration(0);
@@ -1005,8 +1027,15 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       shotDurationRef.current = duration;
       const shapedEndX = endX + timingFactor * 12;
       const targetPoint = getInBoundsTarget(startX, startY, shapedEndX, baseTargetY);
-      const bounce = getBouncePoint(startX, startY, targetPoint.x, targetPoint.y, hitPower, hitSpin);
-      const isOut = isOutOfBounds(bounce.x, bounce.y);
+      let bounce = getBouncePoint(startX, startY, targetPoint.x, targetPoint.y, hitPower, hitSpin);
+      let isOut = isOutOfBounds(bounce.x, bounce.y);
+      if (isVolley && hasFedererVolleyAi) {
+        isOut = false;
+        bounce = {
+          x: Math.max(PHYSICS.COURT_BOUNDS.MIN_X, Math.min(PHYSICS.COURT_BOUNDS.MAX_X, bounce.x)),
+          y: Math.max(PHYSICS.COURT_BOUNDS.MIN_Y, Math.min(PHYSICS.COURT_BOUNDS.MAX_Y, bounce.y)),
+        };
+      }
       shotStartPosRef.current = { x: startX, y: startY };
       shotEndPosRef.current = { x: bounce.x, y: bounce.y };
       setCurrentAnimDuration(duration);
@@ -1083,7 +1112,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         schedulePlayerMiss(postBounceDuration);
       }, duration);
     }, 50);
-  }, [addBounceMarker, aiHomeY, aiProfile.tendencies.awayBias, aiProfile.tendencies.dropShotChance, aiStats, extendShotToY, getBouncePoint, getInBoundsTarget, getPostBounceDuration, getPowerDuration, isOutOfBounds, playHitSound, resetPoint, schedulePlayerMiss, triggerFeedback, tutorial]);
+  }, [addBounceMarker, aiHomeY, aiLoadout, aiProfile.tendencies.awayBias, aiProfile.tendencies.dropShotChance, aiStats, extendShotToY, getBouncePoint, getInBoundsTarget, getPostBounceDuration, getPowerDuration, isOutOfBounds, opponentTimeScale, playHitSound, resetPoint, schedulePlayerMiss, triggerFeedback, tutorial]);
 
   const executePlayerShot = useCallback((params: {
     startX: number;
@@ -1205,6 +1234,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
       ballTimeoutRef.current = setTrackedTimeout(() => {
+        if (isServe && aceMasterServeRef.current === 'player' && rallyCount === 0 && server === 'player') {
+          aceMasterServeRef.current = null;
+          triggerFeedback("🔥 ACE MASTER! 🔥", 700);
+          setAiRunTarget(null);
+          resetPoint('player', { skipFeedback: true });
+          return;
+        }
         const aiNow = currentAiPosRef.current;
         const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
         const aiStroke = aiCheckX < aiNow.x ? 'BH' : 'FH';
@@ -1214,10 +1250,14 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const powerFactor = Math.max(0, Math.min(1, (hitSpin + hitSpeed / 20) / 200));
         const baseMissChance = 0.05 + powerFactor * 0.45;
         const errorModifier = Math.max(0.5, aiProfile.tendencies.errorModifier || 1);
-        const missChance = Math.max(0.01, baseMissChance * controlFactor * errorModifier);
+        let missChance = Math.max(0.01, baseMissChance * controlFactor * errorModifier);
+        if (heavyTopspinRef.current) {
+          missChance = Math.min(0.95, missChance + 0.15);
+        }
         const forcePerfectAi = Boolean(tutorial);
         const inRange = forcePerfectAi ? true : aiDistFromBall < aiHitRadius;
         const rollMiss = forcePerfectAi ? false : Math.random() < missChance;
+        heavyTopspinRef.current = false;
 
         if (isDropShot) {
           if (!inRange) {
@@ -1370,13 +1410,16 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       e.preventDefault();
       if (isServePending && server === 'player' && e.code === 'Space') {
         const serveStats = getServeStats('player');
-        const serveDuration = getPowerDuration('serve', serveStats.power);
+        const serveItemId = getServeItemId('player');
+        const aceMaster = serveItemId === 'special-isner-serve' && Math.random() < 0.2;
+        aceMasterServeRef.current = aceMaster ? 'player' : null;
+        const serveDuration = getPowerDuration('serve', aceMaster ? serveStats.power * 5 : serveStats.power) * playerTimeScale;
         const p = currentPlayerPosRef.current;
         const isTutorialNoFault = Boolean(tutorial);
         const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
         let targetPoint = { x: serveTarget.x + jitter.x, y: serveTarget.y + jitter.y };
-        const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin, targetPoint.y);
-        const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y));
+        const netFault = isTutorialNoFault || aceMaster ? false : shouldServeHitNet(serveStats.spin, targetPoint.y);
+        const outFault = isTutorialNoFault || aceMaster ? false : (!netFault && !isServeInBox('player', serveSide, targetPoint.x, targetPoint.y));
         if (netFault) {
           targetPoint = { x: serveTarget.x, y: SERVE_NET_Y };
         }
@@ -1444,6 +1487,10 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         ? playerVolleyRadius
         : (stroke === 'FH' ? playerHitRadiusFH : playerHitRadiusBH);
       setLastStroke(stroke);
+      heavyTopspinRef.current = stroke === 'FH'
+        && playerLoadout.forehand === 'special-nadal-forehand'
+        && !isVolley
+        && !isDropShot;
       setIsSwinging(true);
       setIsVolleySwinging(isVolley);
       setTrackedTimeout(() => {
@@ -1513,16 +1560,32 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         targetX = 95.5 + (4.5 - 95.5) * lerpT;
       }
       
+      const hasFedererVolley = playerLoadout.volley === 'special-federer-volley';
+      const volleyAggression = hasFedererVolley ? 2 : 1;
       const hitPower = isVolley
-        ? 50 + playerStats.volley.control * 0.25
+        ? (50 + playerStats.volley.control * 0.25) * volleyAggression
         : (stroke === 'FH' ? playerStats.forehand.power : playerStats.backhand.power);
       const baseSpin = isVolley ? 0 : (stroke === 'FH' ? playerStats.forehand.spin : playerStats.backhand.spin);
-      const hitSpeed = getPowerDuration(isDropShot ? 'dropshot' : (isVolley ? 'volley' : (stroke === 'FH' ? 'forehand' : 'backhand')), hitPower);
-      const accuracySpin = isVolley ? (playerStats.volley.accuracy / 100) * 80 : 0;
+      const hitSpeed = getPowerDuration(
+        isDropShot ? 'dropshot' : (isVolley ? 'volley' : (stroke === 'FH' ? 'forehand' : 'backhand')),
+        hitPower
+      ) * playerTimeScale;
+      const volleyAccuracy = hasFedererVolley ? playerStats.volley.accuracy * 5 : playerStats.volley.accuracy;
+      const accuracySpin = isVolley ? (volleyAccuracy / 100) * 80 : 0;
       const effectiveSpin = baseSpin + accuracySpin;
       const baseBounceY = isDropShot ? 80 : (isVolley ? VOLLEY_TARGET_Y : 36);
       const targetPoint = getInBoundsTarget(bX, bY, targetX, baseBounceY);
-      const bounce = getBouncePoint(bX, bY, targetPoint.x, targetPoint.y, hitPower, effectiveSpin);
+      let bounce = getBouncePoint(bX, bY, targetPoint.x, targetPoint.y, hitPower, effectiveSpin);
+      if (isVolley && hasFedererVolley && isOutOfBounds(bounce.x, bounce.y)) {
+        const safeTarget = getInBoundsTarget(bX, bY, targetX, baseBounceY);
+        bounce = getBouncePoint(bX, bY, safeTarget.x, safeTarget.y, hitPower, effectiveSpin);
+        if (isOutOfBounds(bounce.x, bounce.y)) {
+          bounce = {
+            x: Math.max(PHYSICS.COURT_BOUNDS.MIN_X, Math.min(PHYSICS.COURT_BOUNDS.MAX_X, bounce.x)),
+            y: Math.max(PHYSICS.COURT_BOUNDS.MIN_Y, Math.min(PHYSICS.COURT_BOUNDS.MAX_Y, bounce.y)),
+          };
+        }
+      }
       executePlayerShot({
         startX: bX,
         startY: bY,
@@ -1535,7 +1598,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         isVolley,
       });
     }
-  }, [executePlayerShot, gameState.status, getBouncePoint, getPowerDuration, getServeJitter, getServeStats, getTimingScale, isBallLiveRef, isServeInBox, isTutorialOpeningServe, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending, tutorial]);
+  }, [executePlayerShot, gameState.status, getBouncePoint, getInBoundsTarget, getPowerDuration, getServeItemId, getServeJitter, getServeStats, getTimingScale, isBallLiveRef, isOutOfBounds, isServeInBox, isTutorialOpeningServe, playHitSound, playServeFault, playerHitRadiusBH, playerHitRadiusFH, playerLoadout, playerTimeScale, resetPoint, server, serveNumber, serveSide, serveTarget, shouldServeHitNet, triggerFeedback, isServePending, tutorial]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysPressed.current.delete(e.code);
@@ -1620,14 +1683,17 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     const timeoutId = setTrackedTimeout(() => {
       const isTutorialNoFault = Boolean(tutorial);
       const serveStats = getServeStats('opponent');
-      const serveDuration = getPowerDuration('serve', serveStats.power);
+      const serveItemId = getServeItemId('opponent');
+      const aceMaster = serveItemId === 'special-isner-serve' && Math.random() < 0.2;
+      aceMasterServeRef.current = aceMaster ? 'opponent' : null;
+      const serveDuration = getPowerDuration('serve', aceMaster ? serveStats.power * 5 : serveStats.power) * opponentTimeScale;
       const start = currentAiPosRef.current;
       const aiTarget = aiServeTargetRef.current
         ?? getAiServeTarget(serveSide, serveStats.control, aiProfile.tendencies.awayBias, serveNumber);
       const jitter = isTutorialNoFault ? { x: 0, y: 0 } : getServeJitter(serveStats.control);
       let targetPoint = { x: aiTarget.x + jitter.x, y: aiTarget.y + jitter.y };
-      const netFault = isTutorialNoFault ? false : shouldServeHitNet(serveStats.spin, targetPoint.y);
-      const outFault = isTutorialNoFault ? false : (!netFault && !isServeInBox('opponent', serveSide, targetPoint.x, targetPoint.y));
+      const netFault = isTutorialNoFault || aceMaster ? false : shouldServeHitNet(serveStats.spin, targetPoint.y);
+      const outFault = isTutorialNoFault || aceMaster ? false : (!netFault && !isServeInBox('opponent', serveSide, targetPoint.x, targetPoint.y));
       if (netFault) {
         targetPoint = { x: aiTarget.x, y: SERVE_NET_Y };
       }
@@ -1715,7 +1781,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       }, 50);
     }, 1600);
     return () => clearTimeout(timeoutId);
-  }, [addBounceMarker, gameState.status, getPostBounceDuration, getPowerDuration, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, playHitSound, playServeFault, resetPoint, schedulePlayerMiss, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback, tutorial]);
+  }, [addBounceMarker, gameState.status, getPostBounceDuration, getPowerDuration, getServeItemId, getServeJitter, getServeStats, getServeTargetX, isServeInBox, isServePending, opponentTimeScale, playHitSound, playServeFault, resetPoint, schedulePlayerMiss, serveNumber, server, serveSide, shouldServeHitNet, triggerFeedback, tutorial]);
 
   const startGame = () => {
     matchReportedRef.current = false;
@@ -1749,6 +1815,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
 
   const serveUiStats = getServeStats('player');
   const serveNetChance = tutorial ? 0 : getServeNetChance(serveUiStats.spin, serveTarget.y);
+  const canSeeAiServeTarget = playerLoadout.backhand === 'special-djokovic-backhand';
   const serveSpeedMph = useMemo(() => {
     const servePower = Math.max(0, Math.min(100, serveUiStats.power));
     const minDuration = getPowerDuration('serve', 0);
@@ -1769,7 +1836,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         visible: true,
       }
     : undefined;
-  const aiServeDebug = isServePending && server === 'opponent'
+  const aiServeDebug = isServePending && server === 'opponent' && canSeeAiServeTarget
     ? (() => {
         const serveStats = getServeStats('opponent');
         const aiTarget = aiServeTargetRef.current

@@ -5,15 +5,18 @@ type SettingsProps = {
   onAiDifficultyChange: (value: 'easy' | 'medium' | 'hard') => void;
   onBack: () => void;
   onViewTutorial: () => void;
+  devUnlockAllUniques?: boolean;
+  onDevUnlockAllUniquesChange?: (value: boolean) => void;
 };
 
-const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange, onBack, onViewTutorial }) => {
+const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange, onBack, onViewTutorial, devUnlockAllUniques, onDevUnlockAllUniquesChange }) => {
   const handleReset = () => {
     Object.keys(window.localStorage)
       .filter(key => key.startsWith('tennis.'))
       .forEach(key => window.localStorage.removeItem(key));
     window.location.reload();
   };
+  const showDevTools = import.meta.env.DEV;
 
   return (
   <div className="h-screen w-screen bg-slate-950 text-white font-inter overflow-y-auto">
@@ -91,6 +94,28 @@ const Settings: React.FC<SettingsProps> = ({ aiDifficulty, onAiDifficultyChange,
           View Tutorial
         </button>
       </div>
+
+      {showDevTools && (
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-6">
+          <div className="text-xs font-orbitron uppercase tracking-widest text-slate-400">
+            Dev Tools
+          </div>
+          <div className="mt-3 text-[10px] uppercase tracking-widest text-slate-500">
+            Enable all unique shots for quick testing.
+          </div>
+          <button
+            type="button"
+            onClick={() => onDevUnlockAllUniquesChange?.(!devUnlockAllUniques)}
+            className={`mt-4 px-4 py-2 rounded-full text-[10px] font-orbitron uppercase tracking-widest border transition-all ${
+              devUnlockAllUniques
+                ? 'border-emerald-300/70 text-emerald-200 bg-emerald-500/10'
+                : 'border-white/20 text-white/70 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            {devUnlockAllUniques ? 'Uniques Unlocked' : 'Unlock Uniques'}
+          </button>
+        </div>
+      )}
     </div>
   </div>
   );

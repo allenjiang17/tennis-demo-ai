@@ -294,7 +294,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'medvedev-backhand', player: 'Medvedev', shot: 'backhand', stats: { power: 85, spin: 80, control: 105, shape: 75 }, price: 25600, tier: 'legendary', description: 'Flat laser with deep control.' },
   { id: 'agassi-backhand', player: 'Agassi', shot: 'backhand', stats: { power: 86, spin: 75, control: 95, shape: 70 }, price: 25600, tier: 'legendary', description: 'Aggressive backhand with sharp angles.' },
   { id: 'wawrinka-backhand', player: 'Wawrinka', shot: 'backhand', stats: { power: 92, spin: 80, control: 90, shape: 75 }, price: 25600, tier: 'legendary', description: 'Heavy topspin with penetrating depth.' },
-  
+
   { id: 'barty-volley', player: 'Barty', shot: 'volley', stats: { control: 105, accuracy: 120 }, price: 25600, tier: 'legendary', description: 'Calm net game with fine placement.' },
   { id: 'alcaraz-volley', player: 'Alcaraz', shot: 'volley', stats: { control: 150, accuracy: 100 }, price: 25600, tier: 'legendary', description: 'Aggressive volley with sharp angles.' },
   { id: 'murray-volley', player: 'Murray', shot: 'volley', stats: { control: 130, accuracy: 100 }, price: 25600, tier: 'legendary', description: 'Reliable hands with solid depth.' },
@@ -304,9 +304,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'de-minaur-athleticism', player: 'De Minaur', shot: 'athleticism', stats: { speed: 100, stamina: 110 }, price: 25600, tier: 'legendary', description: 'Lightning quick with solid endurance.' },
 
   // Unique (gold) with perk
-  { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 110, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Pure Power: Bonus to serve power', description: 'Signature placement plus extra bite.' },
-  { id: 'special-nadal-forehand', player: 'Nadal', shot: 'forehand', stats: { power: 95, spin: 180, control: 100, shape: 90 }, price: 245760, tier: 'unique', perk: 'Heavy topspin: forces deeper opponent positioning.', description: 'Extreme topspin that kicks high.' },
-  { id: 'special-djokovic-backhand', player: 'Djokovic', shot: 'backhand', stats: { power: 95, spin: 120, control: 180, shape: 80 }, price: 245760, tier: 'unique', perk: 'Immovable: reduces knockback on deep shots.', description: 'Unbreakable defense with pinpoint depth.' },
-  { id: 'special-federer-volley', player: 'Federer', shot: 'volley', stats: { control: 160, accuracy: 160 }, price: 245760, tier: 'unique', perk: 'Soft hands: reduces volley timing sensitivity.', description: 'Crisp touch with surgical angles.' },
-  { id: 'special-alcaraz-athleticism', player: 'Alcaraz', shot: 'athleticism', stats: { speed: 98, stamina: 200 }, price: 245760, tier: 'unique', perk: 'Grinding: speed loss per rally hit reduced.', description: 'Relentless movement with tireless legs.' },
+  { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 110, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Ace master: 20% chance for unreturnable serve (5x power/no fault).', description: 'Explosive pace with a deadly free-point chance.' },
+  { id: 'special-nadal-forehand', player: 'Nadal', shot: 'forehand', stats: { power: 98, spin: 250, control: 100, shape: 120 }, price: 245760, tier: 'unique', perk: 'Heavy topspin: +15% AI error chance on forehand returns.', description: 'Heavy, kicking topspin that forces mistakes.' },
+  { id: 'special-djokovic-backhand', player: 'Djokovic', shot: 'backhand', stats: { power: 95, spin: 120, control: 180, shape: 80 }, price: 245760, tier: 'unique', perk: 'Elite return: reveal AI serve target circles.', description: 'Laser-accurate backhand with elite return vision.' },
+  { id: 'special-federer-volley', player: 'Federer', shot: 'volley', stats: { control: 160, accuracy: 160 }, price: 245760, tier: 'unique', perk: 'Killer volley: no outs on volleys, 5x accuracy, 2x aggression.', description: 'Razor-sharp volleys that always find the court.' },
+  { id: 'special-alcaraz-athleticism', player: 'Alcaraz', shot: 'athleticism', stats: { speed: 98, stamina: 200 }, price: 245760, tier: 'unique', perk: 'Slow motion: opponent ball trajectories at 80% speed.', description: 'Relentless legs that slow the game around you.' },
 ];

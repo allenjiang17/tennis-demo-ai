@@ -577,6 +577,9 @@ const App: React.FC = () => {
   const [aiDifficultySetting, setAiDifficultySetting] = useState<DifficultySetting>(() =>
     loadFromStorage<DifficultySetting>(STORAGE_KEYS.aiDifficulty, 'easy')
   );
+  const [devUnlockAllUniques, setDevUnlockAllUniques] = useState(() =>
+    loadFromStorage<boolean>('tennis.devUnlockUniques', false)
+  );
   const [ownedIds, setOwnedIds] = useState<Set<string>>(() => {
     const stored = loadFromStorage<string[] | null>(STORAGE_KEYS.ownedIds, null);
     if (!stored) {
@@ -584,6 +587,11 @@ const App: React.FC = () => {
     }
     return new Set(stored);
   });
+  const effectiveOwnedIds = useMemo(() => {
+    if (!devUnlockAllUniques) return ownedIds;
+    const uniqueIds = SHOP_ITEMS.filter(item => item.tier === 'unique').map(item => item.id);
+    return new Set([...Array.from(ownedIds), ...uniqueIds]);
+  }, [devUnlockAllUniques, ownedIds]);
   const [loadout, setLoadout] = useState<Loadout>(() => loadFromStorage<Loadout>(STORAGE_KEYS.loadout, DEFAULT_LOADOUT));
   const [selectedAi, setSelectedAi] = useState<AiProfile>(AI_PROFILES[0]);
   const [difficulty, setDifficulty] = useState<DifficultyTier>('amateur');
@@ -649,7 +657,8 @@ const App: React.FC = () => {
     window.localStorage.setItem(STORAGE_KEYS.aiDifficulty, JSON.stringify(aiDifficultySetting));
     window.localStorage.setItem(STORAGE_KEYS.tutorialComplete, JSON.stringify(tutorialCompleted));
     window.localStorage.setItem(STORAGE_KEYS.accessGranted, JSON.stringify(accessGranted));
-  }, [accessGranted, aiDifficultySetting, careerBlock, careerBlockResolved, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, tutorialCompleted, wallet]);
+    window.localStorage.setItem('tennis.devUnlockUniques', JSON.stringify(devUnlockAllUniques));
+  }, [accessGranted, aiDifficultySetting, careerBlock, careerBlockResolved, devUnlockAllUniques, loadout, matchesPlayed, ownedIds, players, shopStock, shopStockCycle, tutorialCompleted, wallet]);
   const rankedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       if (b.rankingPoints !== a.rankingPoints) return b.rankingPoints - a.rankingPoints;
@@ -824,7 +833,7 @@ const App: React.FC = () => {
   }, [generateShopStock, getStockCycle, shopStockCycle]);
 
   const handleEquip = (item: ShopItem, slot: keyof Loadout) => {
-    if (!ownedIds.has(item.id)) return;
+    if (!effectiveOwnedIds.has(item.id)) return;
     setLoadout(prev => ({ ...prev, [slot]: item.id }));
   };
 
@@ -1405,7 +1414,7 @@ const App: React.FC = () => {
         <Shop
           items={SHOP_ITEMS}
           wallet={wallet}
-          ownedIds={ownedIds}
+          ownedIds={effectiveOwnedIds}
           loadout={loadout}
           onEquip={handleEquip}
           portraits={PORTRAITS}
@@ -1695,6 +1704,8 @@ const App: React.FC = () => {
         aiDifficulty={aiDifficultySetting}
         onAiDifficultyChange={setAiDifficultySetting}
         onViewTutorial={beginTutorial}
+        devUnlockAllUniques={devUnlockAllUniques}
+        onDevUnlockAllUniquesChange={setDevUnlockAllUniques}
       />
     );
   }
@@ -1754,7 +1765,7 @@ const App: React.FC = () => {
       <Shop
         items={SHOP_ITEMS}
         wallet={wallet}
-        ownedIds={ownedIds}
+        ownedIds={effectiveOwnedIds}
         loadout={loadout}
         onEquip={handleEquip}
         onStart={() => setScreen('opponent')}
@@ -1779,7 +1790,7 @@ const App: React.FC = () => {
 
   if (screen === 'shot-shop') {
     const ownedCounts = SHOP_ITEMS.reduce<Record<ShotType, number>>((acc, item) => {
-      if (ownedIds.has(item.id)) acc[item.shot] += 1;
+      if (effectiveOwnedIds.has(item.id)) acc[item.shot] += 1;
       return acc;
     }, { serve: 0, forehand: 0, backhand: 0, volley: 0, athleticism: 0 });
     return (
@@ -1788,7 +1799,7 @@ const App: React.FC = () => {
         boxPrices={boxPrices}
         ownedCounts={ownedCounts}
         stockItems={shopStockItems}
-        ownedIds={ownedIds}
+        ownedIds={effectiveOwnedIds}
         matchesUntilRefresh={10 - (matchesPlayed % 10)}
         onBuyStockItem={handleBuyStockItem}
         onBuyBox={handleBuyBox}
