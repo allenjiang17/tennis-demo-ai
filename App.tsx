@@ -1563,12 +1563,17 @@ const App: React.FC = () => {
                 setCareerBlock(prev => (prev % 26) + 1);
               }
               if (isChampion && activeTournamentId) {
-                updatePlayerProfile(PLAYER_ID, {
-                  tournamentWins: {
-                    ...playerTournamentWins,
-                    [activeTournamentId]: (playerTournamentWins[activeTournamentId] ?? 0) + 1,
-                  },
-                });
+                setPlayers(prev => prev.map(player => {
+                  if (player.id !== PLAYER_ID) return player;
+                  const wins = player.tournamentWins ?? {};
+                  return {
+                    ...player,
+                    tournamentWins: {
+                      ...wins,
+                      [activeTournamentId]: (wins[activeTournamentId] ?? 0) + 1,
+                    },
+                  };
+                }));
               }
             setTournamentResult(resultToShow);
             setBlockResultSummary(resultToShow);

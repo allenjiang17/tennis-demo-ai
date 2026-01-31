@@ -174,7 +174,6 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'medvedev-athleticism', player: 'Medvedev', shot: 'athleticism', stats: { speed: 74, stamina: 76 }, price: 240, tier: 'pro', description: 'Medvedev athleticism tuned for pro competition.' },
   { id: 'musetti-serve', player: 'Musetti', shot: 'serve', stats: { power: 78, spin: 58, control: 70, shape: 52 }, price: 240, tier: 'pro', description: 'Musetti serve tuned for pro competition.' },
   { id: 'musetti-forehand', player: 'Musetti', shot: 'forehand', stats: { power: 76, spin: 64, control: 70, shape: 58 }, price: 240, tier: 'pro', description: 'Musetti forehand tuned for pro competition.' },
-  { id: 'musetti-backhand', player: 'Musetti', shot: 'backhand', stats: { power: 72, spin: 62, control: 70, shape: 56 }, price: 2560, tier: 'pro', description: 'Musetti backhand tuned for pro competition.' },
   { id: 'musetti-volley', player: 'Musetti', shot: 'volley', stats: { control: 78, accuracy: 74 }, price: 240, tier: 'pro', description: 'Musetti volley tuned for pro competition.' },
   { id: 'musetti-athleticism', player: 'Musetti', shot: 'athleticism', stats: { speed: 74, stamina: 76 }, price: 240, tier: 'pro', description: 'Musetti athleticism tuned for pro competition.' },
   { id: 'norrie-serve', player: 'Norrie', shot: 'serve', stats: { power: 78, spin: 58, control: 70, shape: 52 }, price: 240, tier: 'pro', description: 'Norrie serve tuned for pro competition.' },
