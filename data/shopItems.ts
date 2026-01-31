@@ -278,9 +278,9 @@ export const SHOP_ITEMS: ShopItem[] = [
 
   // Legendary (purple)
   { id: 'federer-serve', player: 'Federer', shot: 'serve', stats: { power: 103, spin: 60, control: 120, shape: 60 }, price: 25600, tier: 'legendary', description: 'Flatter serve with surgical precision.' },
-  { id: 'roddick-serve', player: 'Roddick', shot: 'serve', stats: { power: 110, spin: 65, control: 80, shape: 55 }, price: 25600, tier: 'legendary', description: 'Solid serve with quick heat.' },
+  { id: 'roddick-serve', player: 'Roddick', shot: 'serve', stats: { power: 105, spin: 65, control: 80, shape: 55 }, price: 25600, tier: 'legendary', description: 'Solid serve with quick heat.' },
   { id: 'serena-serve', player: 'Serena', shot: 'serve', stats: { power: 95, spin: 60, control: 88, shape: 50 }, price: 25600, tier: 'legendary', description: 'Explosive serve with clean lines.' },
-  { id: 'sampras-serve', player: 'Sampras', shot: 'serve', stats: { power: 110, spin: 60, control: 90, shape: 55 }, price: 25600, tier: 'legendary', description: 'Powerful serve with precise placement.' },
+  { id: 'sampras-serve', player: 'Sampras', shot: 'serve', stats: { power: 105, spin: 60, control: 90, shape: 55 }, price: 25600, tier: 'legendary', description: 'Powerful serve with precise placement.' },
   { id: 'djokovic-serve', player: 'Djokovic', shot: 'serve', stats: { power: 96, spin: 70, control: 102, shape: 65 }, price: 25600, tier: 'legendary', description: 'Consistent' },
   { id: 'zverev-serve', player: 'Zverev', shot: 'serve', stats: { power: 98, spin: 68, control: 92, shape: 60 }, price: 25600, tier: 'legendary', description: 'Big serve with solid accuracy.' },
 
@@ -294,7 +294,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'medvedev-backhand', player: 'Medvedev', shot: 'backhand', stats: { power: 85, spin: 80, control: 105, shape: 75 }, price: 25600, tier: 'legendary', description: 'Flat laser with deep control.' },
   { id: 'agassi-backhand', player: 'Agassi', shot: 'backhand', stats: { power: 86, spin: 75, control: 95, shape: 70 }, price: 25600, tier: 'legendary', description: 'Aggressive backhand with sharp angles.' },
   { id: 'wawrinka-backhand', player: 'Wawrinka', shot: 'backhand', stats: { power: 92, spin: 80, control: 90, shape: 75 }, price: 25600, tier: 'legendary', description: 'Heavy topspin with penetrating depth.' },
-
+  
   { id: 'barty-volley', player: 'Barty', shot: 'volley', stats: { control: 105, accuracy: 120 }, price: 25600, tier: 'legendary', description: 'Calm net game with fine placement.' },
   { id: 'alcaraz-volley', player: 'Alcaraz', shot: 'volley', stats: { control: 150, accuracy: 100 }, price: 25600, tier: 'legendary', description: 'Aggressive volley with sharp angles.' },
   { id: 'murray-volley', player: 'Murray', shot: 'volley', stats: { control: 130, accuracy: 100 }, price: 25600, tier: 'legendary', description: 'Reliable hands with solid depth.' },
@@ -304,7 +304,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'de-minaur-athleticism', player: 'De Minaur', shot: 'athleticism', stats: { speed: 100, stamina: 110 }, price: 25600, tier: 'legendary', description: 'Lightning quick with solid endurance.' },
 
   // Unique (gold) with perk
-  { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 120, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Pure Power: Bonus to serve power', description: 'Signature placement plus extra bite.' },
+  { id: 'special-isner-serve', player: 'Isner', shot: 'serve', stats: { power: 110, spin: 75, control: 95, shape: 55 }, price: 245760, tier: 'unique', perk: 'Pure Power: Bonus to serve power', description: 'Signature placement plus extra bite.' },
   { id: 'special-nadal-forehand', player: 'Nadal', shot: 'forehand', stats: { power: 95, spin: 180, control: 100, shape: 90 }, price: 245760, tier: 'unique', perk: 'Heavy topspin: forces deeper opponent positioning.', description: 'Extreme topspin that kicks high.' },
   { id: 'special-djokovic-backhand', player: 'Djokovic', shot: 'backhand', stats: { power: 95, spin: 120, control: 180, shape: 80 }, price: 245760, tier: 'unique', perk: 'Immovable: reduces knockback on deep shots.', description: 'Unbreakable defense with pinpoint depth.' },
   { id: 'special-federer-volley', player: 'Federer', shot: 'volley', stats: { control: 160, accuracy: 160 }, price: 245760, tier: 'unique', perk: 'Soft hands: reduces volley timing sensitivity.', description: 'Crisp touch with surgical angles.' },

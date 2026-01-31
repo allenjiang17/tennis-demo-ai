@@ -182,8 +182,21 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const serveInProgressRef = useRef(false);
   const initialServerRef = useRef<'player' | 'opponent'>('player');
   const lastFrameTimeRef = useRef<number | null>(null);
+  const lastRenderTimeRef = useRef<number>(0);
   const lastTutorialTipRef = useRef<{ primary: string; secondary: string }>({ primary: '', secondary: '' });
   const lastTutorialTipVisibleRef = useRef<{ primary: boolean; secondary: boolean }>({ primary: false, secondary: false });
+  const meterValueRef = useRef(0);
+  const isMeterActiveRef = useRef(false);
+  const trackedTimeoutsRef = useRef<number[]>([]);
+  const setTrackedTimeout = useCallback((fn: () => void, delayMs: number) => {
+    const id = window.setTimeout(fn, delayMs);
+    trackedTimeoutsRef.current.push(id);
+    return id;
+  }, []);
+  const clearTrackedTimeouts = useCallback(() => {
+    trackedTimeoutsRef.current.forEach(id => clearTimeout(id));
+    trackedTimeoutsRef.current = [];
+  }, []);
   const setBallBounced = (value: boolean) => {
     ballHasBouncedRef.current = value;
     setBallHasBounced(value);
@@ -201,9 +214,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     if (gameState.status !== GameStatus.START) return;
     setStartLoadingKey(prev => prev + 1);
     setShowStartButton(false);
-    const timer = setTimeout(() => setShowStartButton(true), 2000);
+    const timer = setTrackedTimeout(() => setShowStartButton(true), 2000);
     return () => clearTimeout(timer);
-  }, [gameState.status]);
+  }, [gameState.status, setTrackedTimeout]);
 
   useEffect(() => {
     if (server !== 'player' || !isServePending) return;
@@ -214,10 +227,10 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const triggerFeedback = useCallback((text: string, duration = 800) => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     setFeedback(text);
-    feedbackTimeoutRef.current = setTimeout(() => {
+    feedbackTimeoutRef.current = setTrackedTimeout(() => {
       setFeedback("");
     }, duration);
-  }, []);
+  }, [setTrackedTimeout]);
 
   const playTutorialTipSound = useCallback(() => {
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -307,9 +320,9 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   const surfacePostBounceMultiplier = useMemo(() => {
     switch (surface) {
       case 'clay':
-        return 1.28;
+        return 1.5;
       case 'hardcourt':
-        return 1.14;
+        return 1.25;
       case 'grass':
       default:
         return 1;
@@ -332,37 +345,38 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         // Player Movement
         const playerSpeed = getPlayerSpeed();
         const playerSpeedPerMs = playerSpeed / baseFrameMs;
-        setPlayerPos(prev => {
-          if (isServePending && server === 'player') {
-            return prev;
+        {
+          const prev = currentPlayerPosRef.current;
+          if (!(isServePending && server === 'player')) {
+            let newX = prev.x;
+            let newY = prev.y;
+            const moveStep = playerSpeedPerMs * deltaMs;
+            if (keysPressed.current.has('ArrowLeft')) newX -= moveStep;
+            if (keysPressed.current.has('ArrowRight')) newX += moveStep;
+            if (keysPressed.current.has('ArrowUp')) newY -= moveStep;
+            if (keysPressed.current.has('ArrowDown')) newY += moveStep;
+            currentPlayerPosRef.current = {
+              x: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_X, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_X, newX)),
+              y: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_Y, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_Y, newY)),
+            };
           }
-          let newX = prev.x;
-          let newY = prev.y;
-          const moveStep = playerSpeedPerMs * deltaMs;
-          if (keysPressed.current.has('ArrowLeft')) newX -= moveStep;
-          if (keysPressed.current.has('ArrowRight')) newX += moveStep;
-          if (keysPressed.current.has('ArrowUp')) newY -= moveStep;
-          if (keysPressed.current.has('ArrowDown')) newY += moveStep;
-          return {
-            x: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_X, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_X, newX)),
-            y: Math.max(PHYSICS.PLAYER_BOUNDS.MIN_Y, Math.min(PHYSICS.PLAYER_BOUNDS.MAX_Y, newY))
-          };
-        });
+        }
 
         // AI Movement
         const aiSpeed = getAiSpeed();
         const aiSpeedPerMs = aiSpeed / baseFrameMs;
-        setAiPos(prev => {
+        {
+          const prev = currentAiPosRef.current;
           const dx = aiTargetXRef.current - prev.x;
           const dy = aiTargetYRef.current - prev.y;
           const moveStep = aiSpeedPerMs * deltaMs;
           const nextX = Math.abs(dx) < moveStep ? aiTargetXRef.current : prev.x + Math.sign(dx) * moveStep;
           const nextY = Math.abs(dy) < moveStep ? aiTargetYRef.current : prev.y + Math.sign(dy) * moveStep;
-          return {
+          currentAiPosRef.current = {
             x: Math.max(AI_COURT_BOUNDS.MIN_X, Math.min(AI_COURT_BOUNDS.MAX_X, nextX)),
             y: Math.max(AI_COURT_BOUNDS.MIN_Y, Math.min(AI_COURT_BOUNDS.MAX_Y, nextY)),
           };
-        });
+        }
 
         // Update live ball position for hit checks and UI cues
         const elapsed = now - shotStartTimeRef.current;
@@ -373,7 +387,6 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         const liveBallX = shotStartPosRef.current.x + (shotEndPosRef.current.x - shotStartPosRef.current.x) * easedProgress;
         const liveBallY = shotStartPosRef.current.y + (shotEndPosRef.current.y - shotStartPosRef.current.y) * easedProgress;
         const liveBallPos = { x: liveBallX, y: liveBallY };
-        setBallHitPos(liveBallPos);
         ballHitPosRef.current = liveBallPos;
 
         // Update Meter based on ball proximity to player's hitting line
@@ -387,14 +400,27 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           const distToHittingLine = bY - currentPlayerPosRef.current.y;
           
           if (Math.abs(distToHittingLine) < hitRadius * 1.5) {
-            setIsMeterActive(true);
+            isMeterActiveRef.current = true;
             const mVal = ((distToHittingLine / hitRadius) + 1) * 50;
-            setMeterValue(Math.max(0, Math.min(100, mVal)));
+            meterValueRef.current = Math.max(0, Math.min(100, mVal));
           } else {
-            setIsMeterActive(false);
+            isMeterActiveRef.current = false;
           }
         } else if (!isMeterHolding) {
-          setIsMeterActive(false);
+          isMeterActiveRef.current = false;
+        }
+
+        if (now - lastRenderTimeRef.current > 16) {
+          const nextPlayer = currentPlayerPosRef.current;
+          const nextAi = currentAiPosRef.current;
+          setPlayerPos({ x: nextPlayer.x, y: nextPlayer.y });
+          setAiPos({ x: nextAi.x, y: nextAi.y });
+          setBallHitPos({ x: ballHitPosRef.current.x, y: ballHitPosRef.current.y });
+          if (!isMeterHolding) {
+            setIsMeterActive(isMeterActiveRef.current);
+            setMeterValue(meterValueRef.current);
+          }
+          lastRenderTimeRef.current = now;
         }
       }
       frameId = requestAnimationFrame(moveLoop);
@@ -543,7 +569,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     playBounceSound(false);
     const id = Date.now();
     setBounceMarkers(prev => [...prev.slice(-10), { id, x, y, opacity: 0.8 }]);
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       setBounceMarkers(prev => prev.map(m => m.id === id ? { ...m, opacity: 0 } : m));
     }, 600);
   }, [playBounceSound]);
@@ -574,7 +600,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setLastStroke(target.x < start.x ? 'BH' : 'FH');
       setIsSwinging(true);
       setIsVolleySwinging(false);
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         setIsSwinging(false);
         setIsVolleySwinging(false);
       }, 250);
@@ -582,7 +608,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setAiLastStroke(target.x < start.x ? 'BH' : 'FH');
       setIsAiSwinging(true);
       setIsAiVolleySwinging(false);
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         setIsAiSwinging(false);
         setIsAiVolleySwinging(false);
       }, 250);
@@ -595,7 +621,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     shotEndPosRef.current = { x: target.x, y: target.y };
     shotStartTimeRef.current = performance.now();
     shotDurationRef.current = duration;
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       setCurrentAnimDuration(duration);
       setBallPos({ x: target.x, y: target.y });
       if (target.y === SERVE_NET_Y) {
@@ -812,10 +838,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     aiTargetYRef.current = aiHomeY;
     setAiRunTarget(null);
     
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       setCurrentAnimDuration(0);
       setBallPos({ x: 50, y: 20 });
-      setPlayerPos({ x: 50, y: 170 });
+      const resetPlayerPos = { x: 50, y: 170 };
+      setPlayerPos(resetPlayerPos);
+      currentPlayerPosRef.current = resetPlayerPos;
       const resetAiPos = { x: 50, y: aiHomeY };
       setAiPos(resetAiPos);
       currentAiPosRef.current = resetAiPos;
@@ -843,7 +871,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         ? (dx < 0 ? playerHitRadiusBH : playerHitRadiusFH)
         : playerVolleyRadius;
       if (ball.y < player.y + hitRadius * 0.3) {
-        missTimeoutRef.current = setTimeout(check, 80);
+        missTimeoutRef.current = setTrackedTimeout(check, 80);
         return;
       }
       const dy = ball.y - player.y;
@@ -856,7 +884,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       resetPoint('opponent', { skipFeedback: true });
     };
     if (missTimeoutRef.current) clearTimeout(missTimeoutRef.current);
-    missTimeoutRef.current = setTimeout(check, delayMs);
+    missTimeoutRef.current = setTrackedTimeout(check, delayMs);
   }, [playerHitRadiusBH, playerHitRadiusFH, playerVolleyRadius, rallyCount, resetPoint, server, triggerFeedback]);
   
   const startAiShot = useCallback((startOverride?: { x: number; y: number }) => {
@@ -864,7 +892,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     setIsAiSwinging(true);
     setIsAiVolleySwinging(isVolley);
     aiVolleySwingRef.current = false;
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       setIsAiSwinging(false);
       setIsAiVolleySwinging(false);
     }, 250);
@@ -893,7 +921,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     setCurrentAnimDuration(0);
     setBallPos({ x: startX, y: startY });
     
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       playHitSound(false);
       isBallLiveRef.current = true;
       setBallTimingFunction(PRE_BOUNCE_TIMING);
@@ -917,13 +945,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       aiTargetYRef.current = aiHomeY;
 
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-      ballTimeoutRef.current = setTimeout(() => {
+      ballTimeoutRef.current = setTrackedTimeout(() => {
         if (!isBallLiveRef.current) return;
         addBounceMarker(bounce.x, bounce.y);
         if (isOut) {
           isBallLiveRef.current = false;
           triggerFeedback("OUT! ❌", 600);
-          ballTimeoutRef.current = setTimeout(() => {
+          ballTimeoutRef.current = setTrackedTimeout(() => {
             resetPoint('player');
           }, 600);
           return;
@@ -948,7 +976,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           setBallPos({ x: dropStopX, y: dropStopY });
 
           if (missTimeoutRef.current) clearTimeout(missTimeoutRef.current);
-          missTimeoutRef.current = setTimeout(() => {
+          missTimeoutRef.current = setTrackedTimeout(() => {
             if (!isBallLiveRef.current) return;
             triggerFeedback("MISS!", 600);
             resetPoint('opponent');
@@ -1039,13 +1067,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       shotEndPosRef.current = { x: volleyTarget.x, y: volleyTarget.y };
       setCurrentAnimDuration(0);
       setBallPos({ x: startX, y: startY });
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         setCurrentAnimDuration(volleyDuration);
         setBallPos({ x: volleyTarget.x, y: volleyTarget.y });
       }, 20);
 
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-      ballTimeoutRef.current = setTimeout(() => {
+      ballTimeoutRef.current = setTrackedTimeout(() => {
         aiVolleySwingRef.current = true;
         startAiShot({ x: volleyTarget.x, y: volleyTarget.y });
       }, volleyDuration);
@@ -1060,12 +1088,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     setCurrentAnimDuration(0);
     setBallPos({ x: startX, y: startY });
 
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       setCurrentAnimDuration(hitSpeed);
       setBallPos({ x: bounceX, y: aiBounceY });
     }, 20);
 
-    setTimeout(() => {
+    setTrackedTimeout(() => {
       if (!isOut && !isServe) {
         checkTutorialTargets(bounceX, aiBounceY, { isVolley: Boolean(isVolley), isDropShot: Boolean(isDropShot) });
       }
@@ -1075,7 +1103,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         triggerFeedback("OUT! ❌", 600);
         setAiRunTarget(null);
         if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-        ballTimeoutRef.current = setTimeout(() => {
+        ballTimeoutRef.current = setTrackedTimeout(() => {
           resetPoint('opponent');
         }, 600);
         return;
@@ -1100,7 +1128,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setBallPos(postTarget);
 
       if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-      ballTimeoutRef.current = setTimeout(() => {
+      ballTimeoutRef.current = setTrackedTimeout(() => {
         const aiNow = currentAiPosRef.current;
         const aiDistFromBall = Math.hypot(aiNow.x - aiCheckX, aiNow.y - aiCheckY);
         const aiStroke = aiCheckX < aiNow.x ? 'BH' : 'FH';
@@ -1119,7 +1147,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           if (!inRange) {
             triggerFeedback("DROPSHOT WINNER! 🏆", 600);
             setAiRunTarget(null);
-            ballTimeoutRef.current = setTimeout(() => {
+            ballTimeoutRef.current = setTrackedTimeout(() => {
               resetPoint('player');
             }, 600);
             return;
@@ -1129,7 +1157,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           setAiRunTarget(null);
           setIsAiSwinging(true);
           setIsAiVolleySwinging(false);
-          setTimeout(() => {
+          setTrackedTimeout(() => {
             setIsAiSwinging(false);
             setIsAiVolleySwinging(false);
           }, 250);
@@ -1153,11 +1181,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           shotEndPosRef.current = { x: netX, y: SERVE_NET_Y };
           setCurrentAnimDuration(netDuration);
           setBallPos({ x: netX, y: SERVE_NET_Y });
-          setTimeout(() => {
+          setTrackedTimeout(() => {
             playNetCordSound();
           }, netDuration);
           if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
+          ballTimeoutRef.current = setTrackedTimeout(() => {
             resetPoint('player');
           }, netDuration);
           return;
@@ -1189,7 +1217,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           setBallPos({ x: outX, y: outY });
 
           if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
+          ballTimeoutRef.current = setTrackedTimeout(() => {
             resetPoint('player');
           }, outDuration);
           return;
@@ -1200,7 +1228,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           setAiRunTarget(null);
           setIsAiSwinging(true);
           setIsAiVolleySwinging(false);
-          setTimeout(() => {
+          setTrackedTimeout(() => {
             setIsAiSwinging(false);
             setIsAiVolleySwinging(false);
           }, 250);
@@ -1224,12 +1252,12 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           shotEndPosRef.current = { x: netX, y: SERVE_NET_Y };
           setCurrentAnimDuration(netDuration);
           setBallPos({ x: netX, y: SERVE_NET_Y });
-          setTimeout(() => {
+          setTrackedTimeout(() => {
             playNetCordSound();
           }, netDuration);
 
           if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-          ballTimeoutRef.current = setTimeout(() => {
+          ballTimeoutRef.current = setTrackedTimeout(() => {
             resetPoint('player');
           }, netDuration);
           return;
@@ -1285,13 +1313,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
           setIsServePending(false);
           playServeFault(p, targetPoint, serveDuration, true);
           if (serveNumber === 1) {
-            setTimeout(() => {
+            setTrackedTimeout(() => {
               setServeNumber(2);
               setIsServePending(true);
               serveInProgressRef.current = false;
             }, serveDuration + 100);
           } else {
-            setTimeout(() => {
+            setTrackedTimeout(() => {
               resetPoint('opponent');
             }, serveDuration + 100);
           }
@@ -1308,7 +1336,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         setLastStroke(targetPoint.x < p.x ? 'BH' : 'FH');
         setIsSwinging(true);
         setIsVolleySwinging(false);
-        setTimeout(() => {
+        setTrackedTimeout(() => {
           setIsSwinging(false);
           setIsVolleySwinging(false);
         }, 250);
@@ -1342,7 +1370,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setLastStroke(stroke);
       setIsSwinging(true);
       setIsVolleySwinging(isVolley);
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         setIsSwinging(false);
         setIsVolleySwinging(false);
       }, 250);
@@ -1373,9 +1401,11 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       tutorial?.onPlayerHit?.({ isVolley });
 
       setIsMeterHolding(true);
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         setIsMeterHolding(false);
         setIsMeterActive(false);
+        isMeterActiveRef.current = false;
+        meterValueRef.current = 0;
       }, 800); 
 
       const timingScale = getTimingScale(stroke === 'FH' ? playerStats.forehand.shape : playerStats.backhand.shape);
@@ -1445,8 +1475,17 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
   }, [handleKeyDown, handleKeyUp]);
 
   useEffect(() => {
+    return () => {
+      clearTrackedTimeouts();
+      if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
+      if (missTimeoutRef.current) clearTimeout(missTimeoutRef.current);
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    };
+  }, [clearTrackedTimeouts]);
+
+  useEffect(() => {
     if (gameState.status !== GameStatus.PLAYING || !isServePending) return;
-    const serverPos = server === 'player' ? playerPos : aiPos;
+    const serverPos = server === 'player' ? currentPlayerPosRef.current : currentAiPosRef.current;
     setCurrentAnimDuration(0);
     setBallTimingFunction(PRE_BOUNCE_TIMING);
     setBallPos({ x: serverPos.x, y: serverPos.y });
@@ -1457,26 +1496,42 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     shotDurationRef.current = 0;
     setBallHitPos({ x: serverPos.x, y: serverPos.y });
     ballHitPosRef.current = { x: serverPos.x, y: serverPos.y };
-  }, [aiPos, gameState.status, isServePending, playerPos, server]);
+  }, [gameState.status, isServePending, server]);
 
   useEffect(() => {
     if (gameState.status !== GameStatus.PLAYING || !isServePending) return;
     const effectiveSide = server === 'opponent' ? (serveSide === 'deuce' ? 'ad' : 'deuce') : serveSide;
     const isDeuce = effectiveSide === 'deuce';
     if (server === 'player') {
-      const serverX = isDeuce ? 80 : 20;
-      const receiverX = isDeuce ? 20 : 80;
-      setPlayerPos(prev => ({ ...prev, x: serverX, y: 186 }));
-      setAiPos(prev => ({ ...prev, x: receiverX, y: -6 }));
-      currentAiPosRef.current = { ...currentAiPosRef.current, x: receiverX, y: -6 };
+      const serverX = isDeuce ? 90 : 10;
+      const receiverX = isDeuce ? 10 : 90;
+      const nextPlayerPos = { x: serverX, y: 186 };
+      const nextAiPos = { x: receiverX, y: -6 };
+      setPlayerPos(nextPlayerPos);
+      currentPlayerPosRef.current = nextPlayerPos;
+      setAiPos(nextAiPos);
+      currentAiPosRef.current = nextAiPos;
+      setBallPos({ x: nextPlayerPos.x, y: nextPlayerPos.y });
+      setBallHitPos({ x: nextPlayerPos.x, y: nextPlayerPos.y });
+      shotStartPosRef.current = { x: nextPlayerPos.x, y: nextPlayerPos.y };
+      shotEndPosRef.current = { x: nextPlayerPos.x, y: nextPlayerPos.y };
+      ballHitPosRef.current = { x: nextPlayerPos.x, y: nextPlayerPos.y };
       aiTargetXRef.current = receiverX;
       aiTargetYRef.current = -6;
     } else {
-      const serverX = isDeuce ? 80 : 20;
-      const receiverX = isDeuce ? 20 : 80;
-      setAiPos(prev => ({ ...prev, x: serverX, y: -6 }));
-      currentAiPosRef.current = { ...currentAiPosRef.current, x: serverX, y: -6 };
-      setPlayerPos(prev => ({ ...prev, x: receiverX, y: 186 }));
+      const serverX = isDeuce ? 90 : 10;
+      const receiverX = isDeuce ? 10 : 90;
+      const nextAiPos = { x: serverX, y: -6 };
+      const nextPlayerPos = { x: receiverX, y: 186 };
+      setAiPos(nextAiPos);
+      currentAiPosRef.current = nextAiPos;
+      setPlayerPos(nextPlayerPos);
+      currentPlayerPosRef.current = nextPlayerPos;
+      setBallPos({ x: nextAiPos.x, y: nextAiPos.y });
+      setBallHitPos({ x: nextAiPos.x, y: nextAiPos.y });
+      shotStartPosRef.current = { x: nextAiPos.x, y: nextAiPos.y };
+      shotEndPosRef.current = { x: nextAiPos.x, y: nextAiPos.y };
+      ballHitPosRef.current = { x: nextAiPos.x, y: nextAiPos.y };
       aiTargetXRef.current = serverX;
       aiTargetYRef.current = -6;
     }
@@ -1486,7 +1541,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
     if (gameState.status !== GameStatus.PLAYING || !isServePending || server !== 'opponent') return;
     if (serveInProgressRef.current) return;
     serveInProgressRef.current = true;
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTrackedTimeout(() => {
       const isTutorialNoFault = Boolean(tutorial);
       const serveStats = getServeStats('opponent');
       const serveDuration = getPowerDuration('serve', serveStats.power);
@@ -1508,13 +1563,13 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         setIsServePending(false);
         playServeFault(start, targetPoint, serveDuration, false);
         if (serveNumber === 1) {
-          setTimeout(() => {
+          setTrackedTimeout(() => {
             setServeNumber(2);
             setIsServePending(true);
             serveInProgressRef.current = false;
           }, serveDuration + 100);
         } else {
-          setTimeout(() => {
+          setTrackedTimeout(() => {
             resetPoint('player');
           }, serveDuration + 100);
         }
@@ -1531,10 +1586,10 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
       setCurrentAnimDuration(0);
       setBallPos({ x: start.x, y: start.y });
 
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         setIsAiSwinging(true);
         setIsAiVolleySwinging(false);
-        setTimeout(() => {
+        setTrackedTimeout(() => {
           setIsAiSwinging(false);
           setIsAiVolleySwinging(false);
         }, 250);
@@ -1555,7 +1610,7 @@ const Game: React.FC<GameProps> = ({ playerStats, aiStats, aiProfile, playerLoad
         aiTargetYRef.current = aiHomeY;
 
         if (ballTimeoutRef.current) clearTimeout(ballTimeoutRef.current);
-        ballTimeoutRef.current = setTimeout(() => {
+        ballTimeoutRef.current = setTrackedTimeout(() => {
           if (!isBallLiveRef.current) return;
           addBounceMarker(serveBounce.x, serveBounce.y);
           setBallBounced(true);

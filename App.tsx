@@ -113,8 +113,8 @@ const applyAiProfileModifiers = (stats: PlayerStats, profileId?: string): Player
       break;
     }
     case 'power-server': {
-      next.serveFirst.power = scale(next.serveFirst.power, 1.15);
-      next.serveSecond.power = scale(next.serveSecond.power, 1.15);
+      next.serveFirst.power = scale(next.serveFirst.power, 1.2);
+      next.serveSecond.power = scale(next.serveSecond.power, 1.2);
       next.forehand.control = scale(next.forehand.control, 0.85);
       next.backhand.control = scale(next.backhand.control, 0.85);
       next.athleticism.speed = scale(next.athleticism.speed, 0.6);
@@ -1498,83 +1498,83 @@ const App: React.FC = () => {
           const activeTournamentId = tournamentState.id;
           const activeTournamentBlock = tournamentState.block;
           const finalRoundId = tournamentState.rounds[tournamentState.rounds.length - 1]?.[0]?.id;
-          const isChampion = winner === 'player' && finalRoundId === pendingTournamentMatchId;
           console.log('[App] onMatchEnd received', {
             winner,
             pendingTournamentMatchId,
             finalRoundId,
-            isChampion,
             tournamentId: tournamentState.id,
             tournamentStatus: tournamentState.status,
           });
-          let resultToShow: TournamentResultState | null = null;
-          let completedState: TournamentState | null = null;
-          setTournamentState(prev => {
-            if (!prev) return prev;
-            const updated: TournamentState = {
-              ...prev,
-              rounds: prev.rounds.map(round => round.map(match => ({ ...match }))),
-            };
-            const match = updated.rounds.flat().find(m => m.id === pendingTournamentMatchId);
-            if (!match) return prev;
-            if (winner === 'player') {
-              match.winnerId = PLAYER_ID;
-            } else {
-              match.winnerId = match.player1Id === PLAYER_ID ? match.player2Id : match.player1Id;
-            }
-            if (winner === 'player') {
-              const prize = updated.prizes[match.round - 1] ?? 0;
-              setWallet(prevWallet => prevWallet + prize);
-              setTournamentEarnings(prevEarned => prevEarned + prize);
-            } else {
-              updated.status = 'eliminated';
-            }
-            resolveNonPlayerMatches(updated, match.round - 1);
-            propagateWinners(updated, match.round - 1);
-            if (updated.status === 'eliminated') {
-              simulateTournamentToEnd(updated, match.round);
-            }
-            if (updated.rounds[3][0].winnerId === PLAYER_ID) updated.status = 'champion';
-            console.log('[App] tournament status update', {
-              updatedStatus: updated.status,
-              winnerId: updated.rounds[3][0].winnerId,
-              tournamentId: updated.id,
-            });
-            const championBonus = 0;
-            if (updated.status !== 'active') {
-              const addedPrize = winner === 'player' ? (updated.prizes[match.round - 1] ?? 0) : 0;
-              resultToShow = {
-                outcome: updated.status === 'champion' ? 'champion' : 'eliminated',
-                tournamentName: updated.name,
-                earnings: tournamentEarnings + addedPrize + championBonus,
-              };
-              simulateTournamentToEnd(updated, match.round);
-              completedState = updated;
-            }
-            return updated;
+          const updated: TournamentState = {
+            ...tournamentState,
+            rounds: tournamentState.rounds.map(round => round.map(match => ({ ...match }))),
+          };
+          const match = updated.rounds.flat().find(m => m.id === pendingTournamentMatchId);
+          if (!match) {
+            setScreen('tournaments');
+            setPendingTournamentMatchId(null);
+            return;
+          }
+          if (winner === 'player') {
+            match.winnerId = PLAYER_ID;
+          } else {
+            match.winnerId = match.player1Id === PLAYER_ID ? match.player2Id : match.player1Id;
+          }
+          if (winner === 'player') {
+            const prize = updated.prizes[match.round - 1] ?? 0;
+            setWallet(prevWallet => prevWallet + prize);
+            setTournamentEarnings(prevEarned => prevEarned + prize);
+          } else {
+            updated.status = 'eliminated';
+          }
+          resolveNonPlayerMatches(updated, match.round - 1);
+          propagateWinners(updated, match.round - 1);
+          if (updated.status === 'eliminated') {
+            simulateTournamentToEnd(updated, match.round);
+          }
+          if (updated.rounds[3][0].winnerId === PLAYER_ID) updated.status = 'champion';
+          console.log('[App] tournament status update', {
+            updatedStatus: updated.status,
+            winnerId: updated.rounds[3][0].winnerId,
+            tournamentId: updated.id,
           });
-            if (resultToShow) {
-              finalizeBlockResults(
-                activeTournamentBlock ?? careerBlock,
-                completedState ?? undefined,
-                tournamentOrigin === 'career' ? 'career' : 'tournament-result'
-              );
-              if (activeTournamentBlock) {
-                setCareerBlock(prev => (prev % 26) + 1);
-              }
-              if (isChampion && activeTournamentId) {
-                setPlayers(prev => prev.map(player => {
-                  if (player.id !== PLAYER_ID) return player;
-                  const wins = player.tournamentWins ?? {};
-                  return {
-                    ...player,
-                    tournamentWins: {
-                      ...wins,
-                      [activeTournamentId]: (wins[activeTournamentId] ?? 0) + 1,
-                    },
-                  };
-                }));
-              }
+          setTournamentState(updated);
+
+          const isChampion = updated.status === 'champion';
+          const championBonus = 0;
+          let resultToShow: TournamentResultState | null = null;
+          if (updated.status !== 'active') {
+            const addedPrize = winner === 'player' ? (updated.prizes[match.round - 1] ?? 0) : 0;
+            resultToShow = {
+              outcome: updated.status === 'champion' ? 'champion' : 'eliminated',
+              tournamentName: updated.name,
+              earnings: tournamentEarnings + addedPrize + championBonus,
+            };
+            simulateTournamentToEnd(updated, match.round);
+          }
+
+          if (resultToShow) {
+            finalizeBlockResults(
+              activeTournamentBlock ?? careerBlock,
+              updated,
+              tournamentOrigin === 'career' ? 'career' : 'tournament-result'
+            );
+            if (activeTournamentBlock) {
+              setCareerBlock(prev => (prev % 26) + 1);
+            }
+            if (isChampion && activeTournamentId) {
+              setPlayers(prev => prev.map(player => {
+                if (player.id !== PLAYER_ID) return player;
+                const wins = player.tournamentWins ?? {};
+                return {
+                  ...player,
+                  tournamentWins: {
+                    ...wins,
+                    [activeTournamentId]: (wins[activeTournamentId] ?? 0) + 1,
+                  },
+                };
+              }));
+            }
             setTournamentResult(resultToShow);
             setBlockResultSummary(resultToShow);
             setTournamentState(null);
